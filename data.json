@@ -1,0 +1,141 @@
+{
+    "saludo": {
+        "preguntas": [
+            "Hola",
+            "Buenas",
+            "Hey",
+            "¿Qué tal?",
+            "Hola Astro"
+        ],
+        "respuesta": [
+            "¡Hola!",
+            "¿Cómo estás?",
+            "Hola, ¿en qué te ayudo?",
+            "Aquí estoy, listo para ayudarte."
+        ]
+    },
+    "despedida": {
+        "preguntas": [
+            "Adiós",
+            "Hasta luego",
+            "Nos vemos",
+            "Chao",
+            "Cierra Astro"
+        ],
+        "respuesta": [
+            "¡Hasta pronto!",
+            "Que tengas buen día",
+            "Nos vemos pronto",
+            "Cierro sesión, adiós."
+        ]
+    },
+    "estado_asistente": {
+        "preguntas": [
+            "¿Estás ahí?",
+            "¿Funcionas?",
+            "¿Sigues activo?",
+            "¿Me oyes?"
+        ],
+        "respuesta": [
+            "Aquí estoy.",
+            "Sí, te escucho.",
+            "Estoy funcionando correctamente."
+        ]
+    },
+    "hora": {
+        "preguntas": [
+            "¿Qué hora es?",
+            "Dime la hora",
+            "¿Me puedes decir la hora?",
+            "¿Tienes la hora?"
+        ],
+        "respuesta": [
+            "Son las {hora_actual}.",
+            "Ahora mismo son las {hora_actual}."
+        ]
+    },
+    "tiempo": {
+        "preguntas": [
+            "¿Qué tiempo hace?",
+            "¿Va a llover?",
+            "¿Hace frío?",
+            "Dime el clima"
+        ],
+        "respuesta": [
+            "Ahora te lo miro...",
+            "Te digo el clima enseguida.",
+            "Buscando el clima actual..."
+        ]
+    },
+    "música": {
+        "preguntas": [
+            "Pon música",
+            "Quiero escuchar música",
+            "Reproduce una canción",
+            "Activa la playlist"
+        ],
+        "respuesta": [
+            "Reproduciendo tu playlist favorita.",
+            "Poniendo música.",
+            "Dime qué canción quieres."
+        ]
+    },
+    "chiste": {
+        "preguntas": [
+            "Cuéntame un chiste",
+            "Hazme reír",
+            "Dime un chiste",
+            "¿Sabes chistes?"
+        ],
+        "respuesta": [
+            "¿Qué hace una abeja en el gimnasio? ¡Zum-ba!",
+            "¿Qué le dice una iguana a su hermana gemela? ¡Iguanita!",
+            "¿Por qué los estadounidenses son malos jugadores de ajedrez? Porque perdieron dos torres.",
+            "Quiero morir tranquilamente mientras duermo, como mi abuelo. No gritando, como los pasajeros de su autobús."
+        ]
+    },
+    "nombre_usuario": {
+        "preguntas": [
+            "¿Cómo me llamo?",
+            "¿Sabes mi nombre?",
+            "Dime mi nombre"
+        ],
+        "respuesta": [
+            "Te llamas Usuario.",
+            "Así es, eres mi humano favorito."
+        ]
+    },
+    "creador": {
+        "preguntas": [
+            "¿Quién te creó?",
+            "¿Quién te programó?",
+            "¿Quién es tu creador?"
+        ],
+        "respuesta": [
+            "Fui creado por ti, genio.",
+            "Tú eres mi creador y programador."
+        ]
+    },
+    "agradecimiento": {
+        "preguntas": [
+            "Gracias",
+            "Muchas gracias",
+            "Te lo agradezco",
+            "Gracias Astro"
+        ],
+        "respuesta": [
+            "¡De nada!",
+            "Para eso estoy.",
+            "Siempre feliz de ayudar."
+        ]
+    },
+    "otros": {
+        "preguntas": [
+            "dsjakd",
+            "quéoei",
+            "XXX",
+            "ghu8"
+        ],
+        "respuesta": "No entendí eso. ¿Podrías repetirlo?"
+    }
+}
