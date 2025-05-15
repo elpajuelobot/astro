@@ -12,6 +12,7 @@ import threading
 
 # """ venv\Scripts\activate """
 # cd C:\Users\elpaj\Documents\jarvis
+# pip install -r requirements.txt
 
 # -------------- CONFIGURACIÓN INICIAL --------------
 CITY = "Punta Umbría"
