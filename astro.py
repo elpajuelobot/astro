@@ -4,13 +4,57 @@ from datetime import datetime
 import requests
 import pywhatkit as kit
 import subprocess
-import time
 import webbrowser
-from usar_memoria import *
+import psutil
+from dotenv import load_dotenv
+import sys
+import os
+from word2number import w2n
+import ctypes
+import pyautogui
+import json
+import time
+import threading
+import difflib
+import unicodedata
+import pvporcupine
+import pyaudio
+import struct
+import pvorca
+from pydub import AudioSegment, effects
+from pydub.playback import play
+from random import choice
+import wikipedia
+import string
 
-# Tiempo atmosférico
+#TODO: Importaciones de archivos
+from spotify_manager import (
+                                spotify_my_list, spotify_play, spotify_pause, 
+                                spotify_next, spotify_previous, spotify_search_song, 
+                                spotify_get_volume, spotify_set_volume
+                            )
+from timer_tool import parse_duration_string, stop_timer_externally, is_timer_active, start_thread
+
+
+#################################################################################################################!
+
+
+# Importar variables
+load_dotenv()
+VBOXMANAGE = os.getenv("VBOXMANAGE")
+VM_NAME = os.getenv("VM_NAME")
+api_key = os.getenv("WEATHER_KEY")
+secret_key = os.getenv("CLAVE")
+access_key = os.getenv("ACCESS_KEY")
+keyword_path = os.getenv("KEYWORD_PATH")
+model_path = os.getenv("MODEL_PATH")
+model_path_2 = os.getenv("MODEL_PATH_2")
+
+# Variables de configuración
+stop = False
+
+# Tiempour atmosférico
 def weather(ciudad):
-    api_key = "e8293aa48b895468205e158ee66eecd5"
     url = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad}&appid={api_key}&units=metric&lang=es"
 
     try:
@@ -22,7 +66,7 @@ def weather(ciudad):
             temperatura = datos_clima['main']['temp']
             descripcion = datos_clima['weather'][0]['description']
             humedad = datos_clima['main']['humidity']
-            return f"El clima en {ciudad} es {descripcion}, con una temperatura de {temperatura}°C,y una humedad del {humedad}%."
+            return f"El clima en {ciudad} es {descripcion}, con una temperatura de {temperatura}°C, y una humedad del {humedad}%."
 
         else:
             return "No se ha podio obtener el clima. Inténtalo luego quillo."
@@ -30,238 +74,114 @@ def weather(ciudad):
         return f"Quillo que ha surgío un error. Este es el error {e}"
 
 
+
 def searchYoutube(query):
-    talk(f"Repoduciendo {query} en Youtube")
+    global stop
+    stop = False
+    talk_async(f"Repoduciendo {query} en Youtube")
     kit.playonyt(query)
 
 
-def screen·On·Of():
-    comando = ['C:\\ABD\\platform-tools\\adb', 'shell', 'dumpsys', 'window', 'policy']
-    result = subprocess.run(comando, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    salida = result.stdout.lower()  # minúsculas para evitar errores por mayúsculas
-
-    if "screen_state_on" in salida or "interactive_state_awake" in salida:
-        return True
-    elif "screen_state_off" in salida or "interactive_state_asleep" in salida:
+def app_init(app_name):
+    def is_app_running():
+        for proc in psutil.process_iter(['name']):
+            if proc.info['name'] and app_name.lower() in proc.info['name'].lower():
+                talk_async("Ya está abierto")
+                return True
         return False
-    else:
-        return None
 
-
-def mobileOn():
-    # Verificar estado de la pantalla
-    if screen·On·Of():
-        talk("La pantalla ya está encendida")
-        return
-    elif not screen·On·Of():
-        talk("Encendiendo móvil")
-
-    # Esperar
-    time.sleep(2)
-    subprocess.run(['adb', 'shell', 'input', 'keyevent', '26'])
-    # Esperar
-    time.sleep(1)
-    # 1. Enciende la pantalla
-    subprocess.run(['adb', 'shell', 'wm', 'dismiss-keyguard'])
-    time.sleep(0.5)
-    # 3. Inyecta PIN
-    subprocess.run(['adb','shell','input','text', '1939m'])
-    time.sleep(0.3)
-    # 4. Pulsa ENTER
-    subprocess.run(['adb','shell','input','keyevent','66'])
-    time.sleep(0.5)
-
-
-def openApp(nombre_app):
-    # Verificar estado de la pantalla
-    if screen·On·Of():
-        pass
-    elif not screen·On·Of():
-        talk("Encendiendo móvil")
-        time.sleep(2)
-        mobileOn()
-        time.sleep(2)
-
-    # Obtener la lista de todos los paquetes instalados
-    result = subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'pm', 'list', 'packages'], capture_output=True, text=True)
-
-    # Buscar el paquete que contiene el nombre de la app en la lista
-    for line in result.stdout.splitlines():
-        if nombre_app.lower() in line.lower():  # Ignorar mayúsculas/minúsculas
-            # Obtener el nombre del paquete (después de 'package:')
-            package_name = line.split(':')[1]
-            print(f"Abriendo la app: {package_name}")
-            # Intentar abrir la aplicación
-            subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'monkey', '-p', f'{package_name}', '-c', 'android.intent.category.LAUNCHER', '1'])
-            return
-
-    # Si no se encuentra la app
-    print(f"No se encontró la aplicación '{nombre_app}'.")
-
-
-def autoClose():
-    # Verificar estado de la pantalla
-    if screen·On·Of():
-        return
-    elif not screen·On·Of():
-        talk("Encendiendo móvil")
-        time.sleep(2)
-        mobileOn()
-        time.sleep(2)
-
-    # Abre la vista de apps recientes
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'keyevent', 'KEYCODE_APP_SWITCH'])
-    time.sleep(2)
-
-    # Contar cuántas apps hay
-    resultado = subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'dumpsys', 'activity', 'recents'],
-                                stdout=subprocess.PIPE,
-                                text=True)
-    lineas = resultado.stdout.splitlines()
-    abiertas = [linea for linea in lineas if 'Recent #0' not in linea and 'Recent #' in linea]
-    cantidad = len(abiertas)
-
-    for _ in range(cantidad - 2):
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'swipe', '500', '1300', '500', '500'])
-        time.sleep(2)
-
-    # Volver a inicio
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'keyevent', 'KEYCODE_HOME'])
-
-
-def WhatsappMessage(contacto, text):
-    # Verificar estado de la pantalla
-    if screen·On·Of():
-        pass
-    elif not screen·On·Of():
-        talk("Encendiendo móvil")
-        time.sleep(2)
-        mobileOn()
-        time.sleep(2)
-
-    # Cambiando text
-    def escape_for_adb(text):
-        if not text:
-            return ""
-        # Escapar caracteres no compatibles
-        text = text.strip().replace(' ', '%s')\
-            .replace('!', '').replace('¿', '').replace('?', '')\
-            .replace('á', 'a').replace('é', 'e').replace('í', 'i')\
-            .replace('ó', 'o').replace('ú', 'u')
-        return text
-
-    contacto_escaped = escape_for_adb(contacto)
-    text_escaped = escape_for_adb(text)
-
-    if not contacto_escaped or not text_escaped:
-        print("❌ Error: El contacto o el mensaje están vacíos después del escape.")
+    if is_app_running():
         return
 
     try:
-        # Abrir WhatsApp
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'monkey', '-p', 'com.whatsapp', '-c', 'android.intent.category.LAUNCHER', '1'])
-        time.sleep(2)
-
-        # Buscar contacto
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'tap', '900', '200'])  # lupa
-        time.sleep(2)
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'text', contacto_escaped])
-        time.sleep(2)
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'tap', '500', '400'])  # primer resultado
-        time.sleep(2)
-
-        # Escribir mensaje
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'text', text_escaped])
-        time.sleep(2)
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'tap', '1000', '2200'])  # botón enviar
-        time.sleep(2)
-
-        # Cerrar WhatsApp
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'keyevent', 'KEYCODE_APP_SWITCH'])
-        time.sleep(1)
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'swipe', '500', '1300', '500', '500'])
-        time.sleep(1)
-        subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'keyevent', 'KEYCODE_HOME'])
-
+        with open("rutas_apps.json", "r", encoding="utf-8") as f:
+            rutas = json.load(f)
     except Exception as e:
-        print(f"⚠️ Error al enviar mensaje por WhatsApp: {e}")
+        talk_async("No he podido cargar el archivo de las aplicaciones.")
+        print("json:", e)
+        return
 
+    name_app = unicodedata.normalize('NFD', app_name)
+    name_app_good = ''.join((c for c in name_app if unicodedata.category(c) != 'Mn'))
+    condience = difflib.get_close_matches(name_app_good.lower(), rutas.keys(), n=1, cutoff=0.4)
 
-def Spotify(cancion):
-    # Verificar estado de la pantalla
-    if screen·On·Of():
-        pass
-    elif not screen·On·Of():
-        talk("Encendiendo móvil")
-        time.sleep(2)
-        mobileOn()
-        time.sleep(2)
+    if condience:
+        new_app = condience[0]
+        ruta = rutas[new_app]
 
-    def escape_for_adb(cancion):
-        cancion = cancion.replace(' ', '%s')  # Espacios
-        cancion = cancion.replace('!', '')    # Opcional: eliminar signos no válidos
-        cancion = cancion.replace('¿', '')    # adb no puede escribirlos
-        cancion = cancion.replace('?', '')    # lo mismo
-        cancion = cancion.replace('á', 'a')   # Reemplaza tildes
-        cancion = cancion.replace('é', 'e')
-        cancion = cancion.replace('í', 'i')
-        cancion = cancion.replace('ó', 'o')
-        cancion = cancion.replace('ú', 'u')
-        # Puedes seguir agregando reemplazos si quieres más compatibilidad
-        return cancion
-
-    cancion_formt = escape_for_adb(cancion)
-    # Abrir Spotify
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'monkey', '-p', 'com.spotify.music', '-c', 'android.intent.category.LAUNCHER', '1'])
-    time.sleep(2)
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'tap', '440', '2150'])
-    time.sleep(2)
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'tap', '440', '450'])
-    time.sleep(2)
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'text', cancion_formt])
-    time.sleep(2)
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'keyevent', '66'])
-    time.sleep(2)
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'tap', '440', '450'])
-    time.sleep(2)
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'tap', '940', '950'])
-    time.sleep(2)
-    subprocess.run(['C:\\ABD\\platform-tools\\adb', 'shell', 'input', 'keyevent', 'KEYCODE_HOME'])
-
-
-def battery():
-    # Ejecutamos el comando ADB y obtenemos la salida en formato de texto
-    result = subprocess.run(
-        ['C:\\ABD\\platform-tools\\adb', 'shell', 'dumpsys', 'battery'], 
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
-    
-    # Ahora tenemos la salida como un string en result.stdout
-    salida = result.stdout
-    
-    # Buscamos el nivel de batería, la fuente de poder y el estado
-    if 'level' in salida:
-        # Buscamos la línea que contiene el nivel de la batería
-        for line in salida.splitlines():
-            if 'level' in line:
-                # Extraemos el nivel de batería
-                level = line.split(":")[1].strip()
-                talk(f"El dispositivo móvil tiene un {level}% de batería.")
-                return
+    if new_app in rutas:
+        if new_app == "grabadora de pantalla":
+            OBS_DIR = os.path.dirname(ruta)
+            subprocess.Popen(ruta, cwd=OBS_DIR)
+        elif new_app == "google":
+            subprocess.Popen([ruta, "--profile-directory=Default"])
+        else:
+            subprocess.Popen(ruta)
+        talk_async(f"Abriendo {new_app}")
     else:
-        talk("No se pudo obtener el nivel de batería.")
+        talk_async(f"Todavía no tengo acceso a {new_app} señor.")
+
+
+
+
+def start_kali():
+    try:
+        subprocess.run(
+            [VBOXMANAGE, "startvm", VM_NAME, "--type", "gui"],
+            check=True
+        )
+    except subprocess.CalledProcessError:
+        talk_async("No se ha podido iniciar Kali Linux señor. Le muestro el error en pantalla.")
+        print(f"No se pudo iniciar la VM «{VM_NAME}».", file=sys.stderr)
+        sys.exit(1)
+
+
+def lock_windows_pc():
+    ctypes.windll.user32.LockWorkStation()
+
+
+def security():
+    for i in range(4):
+        talk_async("Introduzca código de seguridad para acceder")
+
+        code = listen()
+
+        if code == secret_key:
+            talk_async("Accediendo...")
+            return True
+        else:
+            talk_async(f"Código introducido incorrecto.")
+            time.sleep(1.3)
+
+        if i == 4:
+            talk_async("Bloqueando sistema.")
+            time.sleep(1.5)
+            lock_windows_pc()
+            return False
+
+def reboot_pc(command):
+    command = command.lower()
+
+    if "cierra" in command or "cerrar" in command:
+        talk_async("Las ventanas solo se ocultarán.")
+        pyautogui.hotkey('win', 'd')
+        return
+
+    time.sleep(2)
+
+    if "reinicia" in command or "reiniciar" in command:
+        os.startfile(r"C:\Users\elpaj\Documents\Astro\reboot.lnk")
+    elif "apaga" in command or "apagar" in command:
+        os.startfile(r"C:\Users\elpaj\Documents\Astro\shutdown.lnk")
 
 
 def saludo(hora_actual=None):
-    # Definir franjas horarias
     franjas = {
         "buenos días": (6, 12),  # 6 AM a 12 PM
         "buenas tardes": (12, 20),  # 12 PM a 8 PM
         "buenas noches": (20, 6)  # 8 PM a 6 AM
     }
 
-    # Si no se pasa hora_actual, usar la hora del sistema
     if hora_actual is None:
         hora_actual = datetime.now().hour
 
@@ -286,191 +206,375 @@ def periodoDia(hora=None):
         return "de la noche"
 
 
-# Ajustes del asistente
+#TODO Ajustes del asistente
 name = "astro"
 listener = sr.Recognizer()
-engine = pt3.init()
-voices = engine.getProperty('voices')
-rate = engine.getProperty('rate')
-engine.setProperty('voice', voices[0].id)
-engine.setProperty('rate', rate - 50)
+saludos_activacion = [
+    "Dime",  
+    "¿Qué necesita, señor?",  
+    "Le escucho",  
+    "Aquí estoy",  
+    "Preparado para ayudar",  
+    "¿Sí, Hugo?",  
+    "Adelante",  
+    "¿Qué ordena?",  
+    "Listo y operativo",  
+    "A sus órdenes",  
+    "¿Qué desea saber?",  
+    "Estoy escuchando",  
+    "Activo y esperando instrucciones",  
+    "¿Qué hay que hacer?",  
+    "Diga, jefe",
+    "Ya estoy aquí",
+    "¿Otra misión, señor?",
+    "Procesando energía… listo.",
+    "Configuración óptima, ¿qué sigue?"
+]
+
+
+orca = pvorca.create(
+    access_key=access_key,
+    model_path=model_path_2
+    )
+
+def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
+                eco=False, reverb=False, robot=False, suavizar=True):
+    try:
+        if not texto:
+            return
+
+        result = orca.synthesize(texto)
+        if not result or len(result) < 2:
+            print("[Orca] Error: síntesis vacía o inválida.")
+            return
+
+        audio_samples, sample_rate = result
+
+        if isinstance(audio_samples, list):
+            audio_bytes = struct.pack('<' + ('h' * len(audio_samples)), *audio_samples)
+        else:
+            audio_bytes = audio_samples
+
+        try:
+            sample_rate = int(sample_rate[0]) if isinstance(sample_rate, (list, tuple)) else int(sample_rate)
+        except Exception:
+            sample_rate = 16000
+
+        # Intentar mono, si falla, estéreo
+        try:
+            audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=1)
+        except Exception:
+            audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=2)
+
+        # ajustes de voz
+        if tono != 1.0:
+            audio = audio._spawn(audio.raw_data, overrides={"frame_rate": int(audio.frame_rate * tono)}).set_frame_rate(sample_rate)
+        if velocidad != 1.0:
+            audio = audio.speedup(playback_speed=velocidad)
+        if volumen != 0.0:
+            audio += volumen
+        if suavizar:
+            audio = effects.normalize(audio)
+
+        play(audio)
+
+    except Exception as e:
+        print(f"[ERROR] Orca al hablar: {e}")
 
 def talk(text):
-    engine.say(text)
-    engine.runAndWait()
+    hablar_orca(text, tono=1.55, velocidad=1, volumen=1)
+
+def talk_async(text):
+    if threading.active_count() < 2:
+        threading.Thread(target=talk, args=(text,), daemon=True).start()
+
+def word_to_number(text):
+    words = text.split()
+    result = []
+
+    for i in range(len(words)):
+        try:
+            num = w2n.word_to_num(words[i])
+            result.append(str(num))
+        except:
+            result.append(words[i])
+
+    return ' '.join(result)
+
+def clear_text_to_orca(text):
+    permitido = string.ascii_letters + string.digits + string.punctuation + " áéíóúñÁÉÍÓÚÑ"
+    return ''.join(c for c in text if c in permitido or unicodedata.category(c).startswith('Z'))
 
 def listen():
     rec = ""
     try:
         with sr.Microphone() as source:
             listener.adjust_for_ambient_noise(source, duration=1)
-            print("Escuchando...")
+            print("\n\nEscuchando...\n\n")
             voice = listener.listen(source, timeout=10, phrase_time_limit=10)
 
-        rec = listener.recognize_google(voice, language='es-ES')
-        rec = rec.lower()
+        rec = listener.recognize_google(voice, language='es-ES').lower()
+        try:
+            rec = word_to_number(rec)
+        except:
+            pass
+        print(rec)
 
-    except sr.WaitTimeoutError:
-        pass
+    except sr.WaitTimeoutError as e:
+        print(f"\nTiempo de espera agotado: {e}\n")
+        return ""
     except sr.UnknownValueError:
-        pass  # No se pudo entender lo que dijiste
+        return ""  # No se pudo entender lo que dijiste
     except sr.RequestError:
         print("Error al conectar con el servicio de reconocimiento de voz.")
         pass
     return rec
 
-def run(mic_enabled_event):
+def listen_keyword():
+    porcupine = pvporcupine.create(
+        access_key=access_key,
+        keyword_paths=[keyword_path],
+        model_path=model_path
+        )  # puedes cambiar a otro hotword
+    pa = pyaudio.PyAudio()
+    stream = pa.open(
+        rate=porcupine.sample_rate,
+        channels=1,
+        format=pyaudio.paInt16,
+        input=True,
+        frames_per_buffer=porcupine.frame_length
+    )
+
+    try:
+        keyword_detected = False
+        while not keyword_detected:
+            try:
+                pcm = stream.read(porcupine.frame_length, exception_on_overflow=False)
+                pcm_unpacked = struct.unpack_from("h" * porcupine.frame_length, pcm)
+                keyword_index = porcupine.process(pcm_unpacked)
+
+                if keyword_index >= 0:
+                    talk_async(choice(saludos_activacion))
+                    keyword_detected = True
+            except OSError as e:
+                print("[Audio Error]:", e)
+                time.sleep(0.5)
+                continue
+
+    except KeyboardInterrupt:
+        print("Detenido por el usuario.")
+    finally:
+        stream.close()
+        pa.terminate()
+        porcupine.delete()
+
+
+def run():
     try:
         hora_actual = datetime.now().strftime("%H:%M")
         saludo_inicial = saludo()
         saludo_final = periodoDia()
-        talk(f"{saludo_inicial} Hugo, son las {hora_actual} minutos {saludo_final}")
+        talk_async(f"{saludo_inicial} Hugo, son las {hora_actual} minutos {saludo_final}")
         rec = ""
 
         while True:
-            if mic_enabled_event.is_set():
-                rec = listen()
-                if not rec:
-                    continue
+            #! Esperar palabra clave
+            listen_keyword()
 
-                if name in rec:
-                    if 'reproduce' in rec:
-                        query = rec.replace("astro reproduce", "").strip()
-                        while True:
-                            if query == "":
-                                talk("No has dicho nada. ¿Qué quieres que reproduzca en youtube?")
-                                query = listen()
-                                if query != "":
-                                    break
-                            else:
-                                break
-                        searchYoutube(query)
-
-                    elif 'qué tiempo' in rec:
-                        ciudad = "Punta Umbría"
-                        resultado_clima = weather(ciudad)
-                        talk(resultado_clima)
-
-                    elif 'mensaje' in rec:
-                        contacto = ""
-                        while True:
-                            talk("¿A quién quieres enviarle el mensaje?")
-                            contacto = listen()
-                            if not contacto:
-                                talk("No te he entendido. Repítelo.")
-                                continue
-
-                            talk(f"¿Quieres enviarle un mensaje a {contacto}? Di sí o no.")
-                            confirmacion = listen()
-
-                            if "sí" in confirmacion or "si" in confirmacion:
-                                break
-                            elif "no" in confirmacion:
-                                continue
-                            else:
-                                talk("Sigo sin entenderte. Habla más claro.")
-
-                        while True:
-                            talk(f"¿Qué quieres enviarle a {contacto}?")
-                            mensaje = listen()
-                            if mensaje:
-                                talk("Enviando mensaje.")
-                                time.sleep(2)
-                                WhatsappMessage(contacto, mensaje)
-                                time.sleep(2)
-                                talk("Mensaje enviado.")
-                                break
-                            else:
-                                talk("No he podido escuchar el mensaje. Inténalo de nuevo.")
-
-                    elif 'abre una aplicación' in rec:
-                        while True:
-                            talk("¿Qué aplicación quieres abrir?")
-                            app = listen()
-
-                            if not app:
-                                talk("No te he entendido. Repítelo.")
-                                continue
-
-                            talk(f"¿Quieres abrir {app}? Di sí o no.")
-                            confirmacion = listen()
-                            print("confirmación", confirmacion)
-
-                            if "sí" in confirmacion or "si" in confirmacion:
-                                talk(f"Abriendo {app}...")
-                                openApp(app)
-                                break
-                            elif "no" in confirmacion:
-                                continue
-                            else:
-                                talk("No te he entendido. Inténtalo de nuevo.")
-                    elif 'cierra' in rec:
-                        talk("Cerrando aplicaciones")
-                        time.sleep(2)
-                        autoClose()
-                        talk("Aplicaciones cerradas")
-
-                    elif "teléfono" in rec:
-                        mobileOn()
-
-                    elif "pon una canción" in rec or "música" in rec:
-                        while True:
-                            talk("¿Qué canción quieres?")
-                            cancion = listen()
-
-                            if not cancion:
-                                talk("No te he entendido, ¿puedes repetir?")
-                                continue
-
-                            talk(f"¿Quieres reproducir este canción: {cancion}?")
-                            confirmacion = listen()
-
-                            if "sí" in confirmacion or "si" in confirmacion:
-                                talk(f"Reproduciendo la siguiente canción: {cancion}")
-                                Spotify(cancion)
-                                break
-                            elif "no" in confirmacion:
-                                talk("Vale, entonces ¿cuál quieres?")
-                                continue
-                            else:
-                                talk("No me enterao un carajo, repite.")
-
-                    elif "buscar" in rec or "búscame" in rec:
-                        talk("¿Sobre qué quieres que busque?")
-                        query = listen()
-
-                        if not query:
-                            talk("No te he entendido. Repite")
-                            continue
-
-                        if "sí" in rec or "si" in rec:
-                            talk(f"Buscando información sobre '{query}' en internet...")
-                            webbrowser.open(f"https://www.google.com/search?q={query}")
-                            break
-                        elif "no" in rec:
-                            talk("Vale, entonces sobre que tienes interés en saber")
-                            continue
-                        else:
-                            talk("no te he entendido")
-
-                    elif 'batería' in rec:
-                        battery()
-
-                    elif 'adiós' in rec:
-                        talk("¡Hasta luego quillo!")
-                        break
-
-                    else:
-                        rec = rec.replace("astro", "").lstrip()
-                        hora_actual = datetime.now().strftime("%H:%M")
-                        respuesta = responder(rec, "Hugo", hora_actual)
-                        talk(respuesta)
-            else:
-                talk("Micro desactivado")
-                mic_enabled_event.wait()
-                talk("Micro activado")
+            rec = listen()
+            if not rec:
+                time.sleep(2)
                 continue
+
+            elif rec:
+                command = rec.lower()
+
+                #TODO Búsqueda en Youtube
+                if 'reproduce' in command:
+                    query = command.replace("astro reproduce", "").strip()
+                    while True:
+                        if query == "":
+                            talk_async("No has dicho nada. ¿Qué quieres que reproduzca en youtube?")
+                            query = listen()
+                            if query != "":
+                                break
+                        else:
+                            break
+                    searchYoutube(query)
+
+                #TODO Tiempo atmosférico
+                elif 'qué tiempo' in command:
+                    ciudad = "Punta Umbría"
+                    resultado_clima = weather(ciudad)
+                    talk_async(resultado_clima)
+
+                #TODO Búsqueda en la web
+                elif any(word in command for word in ["buscar", "búscame", "investiga", "averigua",
+                                                    "encuentra", "qué es", "quién es", "qué significa"]):
+
+                    wikipedia.set_lang("es")
+
+                    query = (command
+                            .replace("buscar", "")
+                            .replace("búscame", "")
+                            .replace("investiga", "")
+                            .replace("averigua", "")
+                            .replace("encuentra", "")
+                            .replace("qué es", "")
+                            .replace("quién es", "")
+                            .replace("qué significa", "")
+                            .replace("en la wikipedia", "")
+                            .replace("en wikipedia", "")
+                            .replace("en google", "")
+                            .replace(" un ", " ")
+                            .replace(" sobre ", " ")
+                            .replace("sobre la", "")
+                            .strip())
+
+                    if not query:
+                        talk_async("¿Qué desea saber?")
+                        query = listen().strip()
+                        if not query:
+                            talk_async("No le he entendido señor")
+                            continue
+
+                    try:
+                        page_title = wikipedia.search(query, results=1)
+                        if not page_title:
+                            talk_async(f"No he coseguido encontrar información en la wikipedia. Aquí te dejo la búsqueda")
+                            webbrowser.open(f"https://www.google.com/search?q={query}")
+                            continue
+
+                        summary = wikipedia.summary(page_title[0], sentences=2)
+                        clear_text = clear_text_to_orca(f"{page_title[0]}. {summary}")
+                        talk_async(clear_text)
+
+                    except wikipedia.exceptions.DisambiguationError as e:
+                        talk_async(f"He encontrado varios resultados que podrían interesarle señor, por ejemplo: {', '.join(e.options[:3])}")
+                    except wikipedia.exceptions.PageError:
+                        talk_async(f"No he conseguido encontrar resultados válidos sobre {query}, señor")
+                    except Exception as e:
+                        print("[Wikipedia Error]:", e)
+                        talk_async("No he conseguido conectarme con wikipedia señor")
+
+                #TODO: Spotify
+                elif "mi lista" in command:
+                    talk_async("Reproduciendo The Best...")
+                    spotify = spotify_my_list(talk_async)
+
+                elif "sigue la música" in command or "continúa la música" in command:
+                    talk_async("Reproduciendo...")
+                    spotify = spotify_play(talk_async)
+
+                elif "para la música" in command or "pon la música en pausa" in command:
+                    talk_async("Parando la música...")
+                    spotify = spotify_pause(talk_async)
+
+                elif "pasa la canción" in command or "siguiente canción" in command:
+                    talk_async("Pasando a la siguiente canción...")
+                    spotify = spotify_next(talk_async)
+
+                elif "canción anterior" in command:
+                    talk_async("Volviendo...")
+                    spotify = spotify_previous(talk_async)
+
+                elif "pon la canción" in command or "busca la canción" in command:
+                    if "pon la canción" in command:
+                        query = command.replace("pon la canción", "").strip()
+                    elif "busca la canción" in command:
+                        query = command.replace("busca la canción", "").strip()
+
+                    spotify = spotify_search_song(query, talk_async)
+
+                elif "sube el volumen" in command:
+                    original = spotify_get_volume(talk_async)
+                    spotify = spotify_set_volume(original + 10, talk_async)
+
+                elif "baja el volumen" in command or "baja la voz" in command:
+                    original = spotify_get_volume(talk_async)
+                    spotify = spotify_set_volume(original - 10, talk_async)
+
+
+                #TODO: Kali linux
+                elif "kali" in command or "cali" in command:
+                    acceso = security()
+                    if acceso:
+                        talk_async("Abriendo Kali linux...")
+                        start_kali()
+                    else:
+                        talk_async("Acceso denegado.")
+
+
+                #TODO: Temporizador
+                elif "para el temporizador" in command or "quita el temporizador" in command:
+                    if stop_timer_externally():
+                        talk_async("Parando temporizador.")
+                    else:
+                        talk_async("No hay ningún temporizador activo.")
+
+                elif "temporizador" in command or "cuenta atrás" in command:
+                    if is_timer_active():
+                        talk_async("Ya hay un temporizador en marcha.")
+                        continue
+
+                    duration = parse_duration_string(command)
+
+                    if duration is not None and duration > 0:
+                        talk_async(f"Ejecutando temporizador de {int(duration)} segundos")
+                        timer = start_thread(duration)
+                        if not timer:
+                            talk_async("Ya hay un temporizador en marcha.")
+                    else:
+                        talk_async("La entrada no ha podido ejecutarse correctamente. Inténtalo de nuevo.")
+
+
+                #TODO: Preguntas
+                elif "Estás ahí" in command or "estás despierto" in command:
+                    talk_async("Para usted siempre Señor")
+
+                #TODO: Sistema
+                #elif any(word in command for word in ["reiniciar", "reinicia", "apagar", "apaga", "cierra", "cerrar"]):
+                #    acceso = security()
+                #    if acceso:
+                #        talk_async("Preparando el ordenador")
+                #        time.sleep(1.5)
+                #        reboot_pc(command)
+                #    else:
+                #        talk_async("Acceso denegado")
+
+                elif "abre" in command or "inicia" in command:
+                    if "abre" in command:
+                        app = command.replace("abre", "").strip()
+                    else:
+                        app = command.replace("inicia", "").strip()
+
+                    app_init(app_name=app)
+
+                elif "vamos a trabajar" in command:
+                    talk_async("Estoy preparando el entorno...")
+                    app_init(app_name="visual studio")
+                    time.sleep(0.5)
+                    spotify_my_list(talk_async)
+                    time.sleep(0.5)
+                    app_init(app_name="google")
+
+
+                #TODO: Despedida
+                elif 'adiós' in command:
+                    talk_async("¡Hasta luego quillo!")
+                    if is_timer_active():
+                        stop_timer_externally()
+                    break
+
+                else:
+                    talk_async("No te he entendido")
 
     except Exception as e:
         print(f"[ERROR] Algo falló: {e}")
+        talk_async("Problema detectado. Reiniciando sistemas...")
+        time.sleep(2)
+        os.execv(sys.executable, ['python'] + sys.argv)
+    except KeyboardInterrupt:
+        talk_async("Hasta la próxima")
 
+run()

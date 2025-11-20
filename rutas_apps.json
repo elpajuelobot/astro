@@ -1,0 +1,15 @@
+{
+    "spotify": "C:\\Users\\elpaj\\AppData\\Roaming\\Spotify\\Spotify.exe",
+    "bloc de notas": "C:\\Windows\\System32\\notepad.exe",
+    "google": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "visual studio": "C:\\Users\\elpaj\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+    "virtualbox": "C:\\Program Files\\Oracle\\VirtualBox\\VirtualBox.exe",
+    "explorador de archivos": "explorer.exe",
+    "whatsapp": "explorer.exe shell:AppsFolder\\5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App",
+    "grabadora de pantalla": "C:\\Program Files\\obs-studio\\bin\\64bit\\obs64.exe",
+    "filmora": "C:\\Program Files\\Wondershare\\Filmora\\Wondershare Filmora.exe",
+    "microsoft store": "explorer.exe shell:AppsFolder\\Microsoft.WindowsStore_8wekyb3d8bbwe!App",
+    "base de datos": "C:\\Program Files\\pgAdmin 4\\bin\\pgAdmin4.exe",
+    "putty": "C:\\Program Files\\PuTTY\\putty.exe",
+    "cmd": "cmd.exe"
+}
