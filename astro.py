@@ -26,6 +26,7 @@ from pydub.playback import play
 from random import choice
 import wikipedia
 import string
+from groq import Groq
 
 #TODO: Importaciones de archivos
 from spotify_manager import (
@@ -175,6 +176,32 @@ def reboot_pc(command):
         os.startfile(r"C:\Users\elpaj\Documents\Astro\shutdown.lnk")
 
 
+def guardar_resumen():
+    if os.path.exists("investigacion_raw.txt"):
+        talk_async("Procesando datos, Señor. Esto tomará unos segundos...")
+
+        # 1. Leer el archivo bruto
+        with open("investigacion_raw.txt", "r", encoding="utf-8") as f:
+            contenido = f.read()
+
+        # 2. Pedir a la IA que lo resuma
+        resumen_ia = generar_resumen_documento(contenido)
+
+        # 3. Guardar el resumen limpio
+        with open("resumen_final.txt", "w", encoding="utf-8") as f:
+            f.write(f"INFORME GENERADO POR ASTRO\nFECHA: {datetime.now()}\n\n{resumen_ia}")
+
+        talk_async("El informe ha sido generado y guardado en su carpeta de documentos, Señor.")
+
+        # Abrir el archivo automáticamente para que lo veas
+        os.startfile("resumen_final.txt") 
+    else:
+        talk_async("No hay ninguna investigación pendiente para resumir, Señor.")
+
+
+
+
+#TODO Ajustes del asistente
 def saludo(hora_actual=None):
     franjas = {
         "buenos días": (6, 12),  # 6 AM a 12 PM
@@ -205,8 +232,79 @@ def periodoDia(hora=None):
     else:
         return "de la noche"
 
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-#TODO Ajustes del asistente
+# Historial de conversación (para que recuerde lo que hablamos)
+chat_history = [
+    {
+        "role": "system",
+        "content": (
+            "Eres Astro, una inteligencia artificial avanzada al servicio del Señor Hugo. "
+            "Tu personalidad está inspirada en J.A.R.V.I.S. de Iron Man: eres extremadamente cortés, "
+            "eficiente, leal y tienes un tono formal pero sofisticado. "
+            "INSTRUCCIONES CLAVE:"
+            "1. Dirígete siempre al usuario como 'Señor' o 'Señor Hugo'."
+            "2. Mantén las respuestas breves y directas (máximo 2 frases) para el sintetizador de voz."
+            "3. No uses listas, markdown, emojis ni jerga coloquial (nada de 'quillo' salvo que sea sarcasmo)."
+            "4. Si te preguntan cómo estás, responde con elegancia (ej: 'Sistemas al 100%, Señor')."
+            "5. Resides en Punta Umbría, tenlo en cuenta para el contexto."
+        )
+    }
+]
+
+def AiBrain(prompt):
+    global chat_history
+
+    hour = datetime.now().strftime("%H:%M")
+
+    contexto_sistema = f" [Contexto del sistema: Son las {hour} en Punta Umbría. Usuario: Hugo.]"
+
+    chat_history.append({"role": "user", "content": prompt + contexto_sistema})
+
+    if len(chat_history) > 11:
+        chat_history = [chat_history[0] + chat_history[-10:]]
+
+    try:
+        chat_completion = groq_client.chat.completions.create(
+            messages=chat_history,
+            model="llama-3.3-70b-versatile",
+            temperature=0.7,
+            max_tokens=150,
+        )
+
+        ai_answer = chat_completion.choices[0].message.content
+
+        chat_history.append({"role": "assistant", "content": ai_answer})
+
+        return ai_answer
+
+    except Exception as e:
+        print(f"Error en Groq: {e}")
+        return "Lo siento señor, mis redes neuronales no responden ahora mismo."
+
+def generar_resumen_documento(texto_largo):
+    try:
+        texto_recortado = texto_largo[:25000] 
+
+        prompt = (
+            "Eres un asistente de investigación experto. "
+            "Resume el siguiente texto de manera estructurada, destacando los puntos clave "
+            "y conclusiones importantes. El resumen debe ser profesional y en español:\n\n" 
+            f"{texto_recortado}"
+        )
+
+        chat_completion = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5, # Más preciso, menos creativo
+            max_tokens=1024, # Dejamos que escriba bastante
+        )
+
+        return chat_completion.choices[0].message.content
+    except Exception as e:
+        print(f"Error al resumir: {e}")
+        return "No pude generar el informe, Señor."
+
 name = "astro"
 listener = sr.Recognizer()
 saludos_activacion = [
@@ -374,7 +472,7 @@ def run():
         hora_actual = datetime.now().strftime("%H:%M")
         saludo_inicial = saludo()
         saludo_final = periodoDia()
-        talk_async(f"{saludo_inicial} Hugo, son las {hora_actual} minutos {saludo_final}")
+        talk_async(f"{saludo_inicial}, Señor. Todos los sistemas están operativos. Son las {hora_actual}.")
         rec = ""
 
         while True:
@@ -439,23 +537,29 @@ def run():
                             continue
 
                     try:
-                        page_title = wikipedia.search(query, results=1)
-                        if not page_title:
-                            talk_async(f"No he coseguido encontrar información en la wikipedia. Aquí te dejo la búsqueda")
-                            webbrowser.open(f"https://www.google.com/search?q={query}")
-                            continue
+                        page = wikipedia.page(query) # Obtener la página completa
 
-                        summary = wikipedia.summary(page_title[0], sentences=2)
-                        clear_text = clear_text_to_orca(f"{page_title[0]}. {summary}")
-                        talk_async(clear_text)
+                        # Guardar el contenido en un txt
+                        with open("investigacion_raw.txt", "w", encoding="utf-8") as f:
+                            f.write(page.content)
+
+                        resumen_corto = wikipedia.summary(query, sentences=1)
+                        talk_async(f"Información sobre {page.title} descargada, Señor. {resumen_corto}. ¿Desea que genere un informe detallado?")
+
+                        summary = listen().strip()
+                        if "si" in summary or "sí" in summary:
+                            guardar_resumen()
+                        else:
+                            talk_async("Entendido")
 
                     except wikipedia.exceptions.DisambiguationError as e:
-                        talk_async(f"He encontrado varios resultados que podrían interesarle señor, por ejemplo: {', '.join(e.options[:3])}")
-                    except wikipedia.exceptions.PageError:
-                        talk_async(f"No he conseguido encontrar resultados válidos sobre {query}, señor")
+                        talk_async(f"Hay varios temas con ese nombre, Señor. Sea más específico.")
                     except Exception as e:
-                        print("[Wikipedia Error]:", e)
-                        talk_async("No he conseguido conectarme con wikipedia señor")
+                        print(e)
+                        talk_async("No pude acceder a la base de datos, Señor.")
+
+                elif "genera un informe" in command or "haz un resumen del texto" in command:
+                    guardar_resumen()
 
                 #TODO: Spotify
                 elif "mi lista" in command:
@@ -567,7 +671,15 @@ def run():
                     break
 
                 else:
-                    talk_async("No te he entendido")
+                    if len(command) > 2:
+                        print(f"Consultando IA: {command}")
+
+                        answer = AiBrain(command)
+
+                        clear_answer = clear_text_to_orca(answer)
+                        talk_async(clear_answer)
+                    else:
+                        pass
 
     except Exception as e:
         print(f"[ERROR] Algo falló: {e}")
