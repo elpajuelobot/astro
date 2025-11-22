@@ -202,6 +202,16 @@ def guardar_resumen():
 
 
 #TODO Ajustes del asistente
+
+saludos = [
+    "Señor. Todos los sistemas están operativos.",
+    "Señor. Listo para las instrucciones del día.",
+    "Señor. Todos los sistemas se encuentran en óptimo estado",
+    "Sistemas en línea, Señor. La hora actual en Punta Umbría es {hora_actual}. ¿Hay alguna instrucción pendiente?",
+    "Operativo, Señor. La configuración es óptima y estoy listo para sus comandos. Son las {hora_actual}",
+    "Señor Hugo. Bienvenido. La hora es {hora_actual}. ¿En qué puedo asistirle hoy?"
+]
+
 def saludo(hora_actual=None):
     franjas = {
         "buenos días": (6, 12),  # 6 AM a 12 PM
@@ -472,7 +482,9 @@ def run():
         hora_actual = datetime.now().strftime("%H:%M")
         saludo_inicial = saludo()
         saludo_final = periodoDia()
-        talk_async(f"{saludo_inicial}, Señor. Todos los sistemas están operativos. Son las {hora_actual}.")
+        saludo_base = choice(saludos)
+        choice_saludo = saludo_base.format(hora_actual=hora_actual)
+        talk_async(f"{saludo_inicial}, {choice_saludo}")
         rec = ""
 
         while True:
@@ -665,7 +677,7 @@ def run():
 
                 #TODO: Despedida
                 elif 'adiós' in command:
-                    talk_async("¡Hasta luego quillo!")
+                    talk_async("Ha sido un placer, señor. Desconexión de sistemas")
                     if is_timer_active():
                         stop_timer_externally()
                     break
