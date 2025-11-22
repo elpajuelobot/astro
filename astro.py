@@ -1,32 +1,18 @@
-import speech_recognition as sr
-import pyttsx3 as pt3
 from datetime import datetime
 import requests
 import pywhatkit as kit
 import subprocess
-import webbrowser
 import psutil
 from dotenv import load_dotenv
 import sys
 import os
-from word2number import w2n
 import ctypes
-import pyautogui
 import json
 import time
-import threading
 import difflib
 import unicodedata
-import pvporcupine
-import pyaudio
-import struct
-import pvorca
-from pydub import AudioSegment, effects
-from pydub.playback import play
 from random import choice
 import wikipedia
-import string
-from groq import Groq
 
 #TODO: Importaciones de archivos
 from spotify_manager import (
@@ -35,6 +21,12 @@ from spotify_manager import (
                                 spotify_get_volume, spotify_set_volume
                             )
 from timer_tool import parse_duration_string, stop_timer_externally, is_timer_active, start_thread
+from system_config import (
+                            AiBrain, generar_resumen_documento,
+                            talk_async, listen, listen_keyword,
+                            clear_text_to_orca, memory_manager,
+                            delete_memory
+                            )
 
 
 #################################################################################################################!
@@ -46,10 +38,6 @@ VBOXMANAGE = os.getenv("VBOXMANAGE")
 VM_NAME = os.getenv("VM_NAME")
 api_key = os.getenv("WEATHER_KEY")
 secret_key = os.getenv("CLAVE")
-access_key = os.getenv("ACCESS_KEY")
-keyword_path = os.getenv("KEYWORD_PATH")
-model_path = os.getenv("MODEL_PATH")
-model_path_2 = os.getenv("MODEL_PATH_2")
 
 # Variables de configuración
 stop = False
@@ -160,20 +148,6 @@ def security():
             lock_windows_pc()
             return False
 
-def reboot_pc(command):
-    command = command.lower()
-
-    if "cierra" in command or "cerrar" in command:
-        talk_async("Las ventanas solo se ocultarán.")
-        pyautogui.hotkey('win', 'd')
-        return
-
-    time.sleep(2)
-
-    if "reinicia" in command or "reiniciar" in command:
-        os.startfile(r"C:\Users\elpaj\Documents\Astro\reboot.lnk")
-    elif "apaga" in command or "apagar" in command:
-        os.startfile(r"C:\Users\elpaj\Documents\Astro\shutdown.lnk")
 
 
 def guardar_resumen():
@@ -198,10 +172,6 @@ def guardar_resumen():
     else:
         talk_async("No hay ninguna investigación pendiente para resumir, Señor.")
 
-
-
-
-#TODO Ajustes del asistente
 
 saludos = [
     "Señor. Todos los sistemas están operativos.",
@@ -242,241 +212,26 @@ def periodoDia(hora=None):
     else:
         return "de la noche"
 
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# Historial de conversación (para que recuerde lo que hablamos)
-chat_history = [
-    {
-        "role": "system",
-        "content": (
-            "Eres Astro, una inteligencia artificial avanzada al servicio del Señor Hugo. "
-            "Tu personalidad está inspirada en J.A.R.V.I.S. de Iron Man: eres extremadamente cortés, "
-            "eficiente, leal y tienes un tono formal pero sofisticado. "
-            "INSTRUCCIONES CLAVE:"
-            "1. Dirígete siempre al usuario como 'Señor' o 'Señor Hugo'."
-            "2. Mantén las respuestas breves y directas (máximo 2 frases) para el sintetizador de voz."
-            "3. No uses listas, markdown, emojis ni jerga coloquial (nada de 'quillo' salvo que sea sarcasmo)."
-            "4. Si te preguntan cómo estás, responde con elegancia (ej: 'Sistemas al 100%, Señor')."
-            "5. Resides en Punta Umbría, tenlo en cuenta para el contexto."
-        )
-    }
-]
+def system_status():
+    print("analizando...")
+    cpu = psutil.cpu_percent(interval=0.5)
+    ram = psutil.virtual_memory().percent
+    print("analizando...")
 
-def AiBrain(prompt):
-    global chat_history
+    if cpu > 85 or ram > 85:
+        estado_general = "Atención, Señor. Los niveles de consumo son elevados."
+    else:
+        estado_general = "Todos los sistemas funcionan dentro de los parámetros normales."
 
-    hour = datetime.now().strftime("%H:%M")
+    mensaje = (f"Informe de estado: La carga de la CPU es del {cpu} por ciento. "
+                f"El uso de memoria RAM es del {ram} por ciento."
+                f"{estado_general}")
 
-    contexto_sistema = f" [Contexto del sistema: Son las {hour} en Punta Umbría. Usuario: Hugo.]"
+    time.sleep(5)
+    talk_async(mensaje)
 
-    chat_history.append({"role": "user", "content": prompt + contexto_sistema})
-
-    if len(chat_history) > 11:
-        chat_history = [chat_history[0] + chat_history[-10:]]
-
-    try:
-        chat_completion = groq_client.chat.completions.create(
-            messages=chat_history,
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            max_tokens=150,
-        )
-
-        ai_answer = chat_completion.choices[0].message.content
-
-        chat_history.append({"role": "assistant", "content": ai_answer})
-
-        return ai_answer
-
-    except Exception as e:
-        print(f"Error en Groq: {e}")
-        return "Lo siento señor, mis redes neuronales no responden ahora mismo."
-
-def generar_resumen_documento(texto_largo):
-    try:
-        texto_recortado = texto_largo[:25000] 
-
-        prompt = (
-            "Eres un asistente de investigación experto. "
-            "Resume el siguiente texto de manera estructurada, destacando los puntos clave "
-            "y conclusiones importantes. El resumen debe ser profesional y en español:\n\n" 
-            f"{texto_recortado}"
-        )
-
-        chat_completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5, # Más preciso, menos creativo
-            max_tokens=1024, # Dejamos que escriba bastante
-        )
-
-        return chat_completion.choices[0].message.content
-    except Exception as e:
-        print(f"Error al resumir: {e}")
-        return "No pude generar el informe, Señor."
-
-name = "astro"
-listener = sr.Recognizer()
-saludos_activacion = [
-    "Dime",  
-    "¿Qué necesita, señor?",  
-    "Le escucho",  
-    "Aquí estoy",  
-    "Preparado para ayudar",  
-    "¿Sí, Hugo?",  
-    "Adelante",  
-    "¿Qué ordena?",  
-    "Listo y operativo",  
-    "A sus órdenes",  
-    "¿Qué desea saber?",  
-    "Estoy escuchando",  
-    "Activo y esperando instrucciones",  
-    "¿Qué hay que hacer?",  
-    "Diga, jefe",
-    "Ya estoy aquí",
-    "¿Otra misión, señor?",
-    "Procesando energía… listo.",
-    "Configuración óptima, ¿qué sigue?"
-]
-
-
-orca = pvorca.create(
-    access_key=access_key,
-    model_path=model_path_2
-    )
-
-def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
-                eco=False, reverb=False, robot=False, suavizar=True):
-    try:
-        if not texto:
-            return
-
-        result = orca.synthesize(texto)
-        if not result or len(result) < 2:
-            print("[Orca] Error: síntesis vacía o inválida.")
-            return
-
-        audio_samples, sample_rate = result
-
-        if isinstance(audio_samples, list):
-            audio_bytes = struct.pack('<' + ('h' * len(audio_samples)), *audio_samples)
-        else:
-            audio_bytes = audio_samples
-
-        try:
-            sample_rate = int(sample_rate[0]) if isinstance(sample_rate, (list, tuple)) else int(sample_rate)
-        except Exception:
-            sample_rate = 16000
-
-        # Intentar mono, si falla, estéreo
-        try:
-            audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=1)
-        except Exception:
-            audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=2)
-
-        # ajustes de voz
-        if tono != 1.0:
-            audio = audio._spawn(audio.raw_data, overrides={"frame_rate": int(audio.frame_rate * tono)}).set_frame_rate(sample_rate)
-        if velocidad != 1.0:
-            audio = audio.speedup(playback_speed=velocidad)
-        if volumen != 0.0:
-            audio += volumen
-        if suavizar:
-            audio = effects.normalize(audio)
-
-        play(audio)
-
-    except Exception as e:
-        print(f"[ERROR] Orca al hablar: {e}")
-
-def talk(text):
-    hablar_orca(text, tono=1.55, velocidad=1, volumen=1)
-
-def talk_async(text):
-    if threading.active_count() < 2:
-        threading.Thread(target=talk, args=(text,), daemon=True).start()
-
-def word_to_number(text):
-    words = text.split()
-    result = []
-
-    for i in range(len(words)):
-        try:
-            num = w2n.word_to_num(words[i])
-            result.append(str(num))
-        except:
-            result.append(words[i])
-
-    return ' '.join(result)
-
-def clear_text_to_orca(text):
-    permitido = string.ascii_letters + string.digits + string.punctuation + " áéíóúñÁÉÍÓÚÑ"
-    return ''.join(c for c in text if c in permitido or unicodedata.category(c).startswith('Z'))
-
-def listen():
-    rec = ""
-    try:
-        with sr.Microphone() as source:
-            listener.adjust_for_ambient_noise(source, duration=1)
-            print("\n\nEscuchando...\n\n")
-            voice = listener.listen(source, timeout=10, phrase_time_limit=10)
-
-        rec = listener.recognize_google(voice, language='es-ES').lower()
-        try:
-            rec = word_to_number(rec)
-        except:
-            pass
-        print(rec)
-
-    except sr.WaitTimeoutError as e:
-        print(f"\nTiempo de espera agotado: {e}\n")
-        return ""
-    except sr.UnknownValueError:
-        return ""  # No se pudo entender lo que dijiste
-    except sr.RequestError:
-        print("Error al conectar con el servicio de reconocimiento de voz.")
-        pass
-    return rec
-
-def listen_keyword():
-    porcupine = pvporcupine.create(
-        access_key=access_key,
-        keyword_paths=[keyword_path],
-        model_path=model_path
-        )  # puedes cambiar a otro hotword
-    pa = pyaudio.PyAudio()
-    stream = pa.open(
-        rate=porcupine.sample_rate,
-        channels=1,
-        format=pyaudio.paInt16,
-        input=True,
-        frames_per_buffer=porcupine.frame_length
-    )
-
-    try:
-        keyword_detected = False
-        while not keyword_detected:
-            try:
-                pcm = stream.read(porcupine.frame_length, exception_on_overflow=False)
-                pcm_unpacked = struct.unpack_from("h" * porcupine.frame_length, pcm)
-                keyword_index = porcupine.process(pcm_unpacked)
-
-                if keyword_index >= 0:
-                    talk_async(choice(saludos_activacion))
-                    keyword_detected = True
-            except OSError as e:
-                print("[Audio Error]:", e)
-                time.sleep(0.5)
-                continue
-
-    except KeyboardInterrupt:
-        print("Detenido por el usuario.")
-    finally:
-        stream.close()
-        pa.terminate()
-        porcupine.delete()
-
-
+#!######      BUCLE PRINCIPAL      ######!#
 def run():
     try:
         hora_actual = datetime.now().strftime("%H:%M")
@@ -648,16 +403,8 @@ def run():
                 elif "Estás ahí" in command or "estás despierto" in command:
                     talk_async("Para usted siempre Señor")
 
-                #TODO: Sistema
-                #elif any(word in command for word in ["reiniciar", "reinicia", "apagar", "apaga", "cierra", "cerrar"]):
-                #    acceso = security()
-                #    if acceso:
-                #        talk_async("Preparando el ordenador")
-                #        time.sleep(1.5)
-                #        reboot_pc(command)
-                #    else:
-                #        talk_async("Acceso denegado")
 
+                #TODO: Sistema
                 elif "abre" in command or "inicia" in command:
                     if "abre" in command:
                         app = command.replace("abre", "").strip()
@@ -673,6 +420,50 @@ def run():
                     spotify_my_list(talk_async)
                     time.sleep(0.5)
                     app_init(app_name="google")
+
+                elif "estado del sistema" in command or "informe del sistema" in command:
+                    talk_async("Analizando telemetría del sistema señor...")
+                    system_status()
+
+
+                #TODO Interacción con memoria
+                elif "recuerda que" in command or "guarda en tu memoria que" in command:
+                    memory_text = (command
+                                    .replace("recuerda que", "")
+                                    .replace("guarda en tu memoria que", "")
+                                    .strip())
+
+                    if memory_text:
+                        talk_async(f"Guardando en mi base de datos: {memory_text}")
+                        memory_manager(new_memory=memory_text)
+                    else:
+                        talk_async("¿Qué es lo que quieres que recuerde, señor?")
+
+                elif any(word in command for word in ["qué tienes en tu memoria", "léeme tu memoria",
+                                                    "qué sabes de mi"]):
+                    datos = memory_manager()
+                    if "No tengo recuerdos" in datos:
+                        talk_async("Mi base de datos de recuerdos está vacía, Señor.")
+                    else:
+                        talk_async("Accediendo a los registros encriptados...")
+                        clear_dates = datos.replace("[", "").replace("]", " del ")
+                        talk_async(f"Esto es lo que tengo guardado: {clear_dates}")
+
+                elif any(word in command for word in ["borra tu memoria", "formatea tu memoria",
+                                                    "elimina tu memoria"]):
+                    talk_async("Advertencia. Señor, está a punto de eliminar" \
+                                "permanentemente todos los datos de mi memoria" \
+                                "¿Desea continuar?")
+
+                    confirmacion = listen()
+
+                    if any(word in confirmacion for word in ["sí", "si", "hazlo", "procede"]):
+                        if delete_memory():
+                            talk_async("Memoria formateada. Todos los datos han sido eliminados exitosamente.")
+                        else:
+                            talk_async("Ha ocurrido un error al eliminar los datos de mi memoria señor.")
+                    else:
+                        talk_async("Cancelando protocolo de borrado")
 
 
                 #TODO: Despedida
@@ -701,4 +492,7 @@ def run():
     except KeyboardInterrupt:
         talk_async("Hasta la próxima")
 
-run()
+
+if __name__ == "__main__":
+    run()
+    print("\nScript cerrado\n")
