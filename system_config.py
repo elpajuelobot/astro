@@ -16,6 +16,10 @@ from random import choice
 import string
 from groq import Groq
 import json
+from deep_translator import GoogleTranslator
+
+#! Semaforo para controlar el audio
+audio_lock = threading.Lock()
 
 # Importar variables
 load_dotenv()
@@ -106,6 +110,7 @@ def AiBrain(prompt):
             model="llama-3.3-70b-versatile",
             temperature=0.7,
             max_tokens=150,
+            timeout=10
         )
 
         ai_answer = chat_completion.choices[0].message.content
@@ -173,47 +178,48 @@ orca = pvorca.create(
 
 def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
                 eco=False, reverb=False, robot=False, suavizar=True):
-    try:
-        if not texto:
-            return
-
-        result = orca.synthesize(texto)
-        if not result or len(result) < 2:
-            print("[Orca] Error: síntesis vacía o inválida.")
-            return
-
-        audio_samples, sample_rate = result
-
-        if isinstance(audio_samples, list):
-            audio_bytes = struct.pack('<' + ('h' * len(audio_samples)), *audio_samples)
-        else:
-            audio_bytes = audio_samples
-
+    with audio_lock:
         try:
-            sample_rate = int(sample_rate[0]) if isinstance(sample_rate, (list, tuple)) else int(sample_rate)
-        except Exception:
-            sample_rate = 16000
+            if not texto:
+                return
 
-        # Intentar mono, si falla, estéreo
-        try:
-            audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=1)
-        except Exception:
-            audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=2)
+            result = orca.synthesize(texto)
+            if not result or len(result) < 2:
+                print("[Orca] Error: síntesis vacía o inválida.")
+                return
 
-        # ajustes de voz
-        if tono != 1.0:
-            audio = audio._spawn(audio.raw_data, overrides={"frame_rate": int(audio.frame_rate * tono)}).set_frame_rate(sample_rate)
-        if velocidad != 1.0:
-            audio = audio.speedup(playback_speed=velocidad)
-        if volumen != 0.0:
-            audio += volumen
-        if suavizar:
-            audio = effects.normalize(audio)
+            audio_samples, sample_rate = result
 
-        play(audio)
+            if isinstance(audio_samples, list):
+                audio_bytes = struct.pack('<' + ('h' * len(audio_samples)), *audio_samples)
+            else:
+                audio_bytes = audio_samples
 
-    except Exception as e:
-        print(f"[ERROR] Orca al hablar: {e}")
+            try:
+                sample_rate = int(sample_rate[0]) if isinstance(sample_rate, (list, tuple)) else int(sample_rate)
+            except Exception:
+                sample_rate = 16000
+
+            # Intentar mono, si falla, estéreo
+            try:
+                audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=1)
+            except Exception:
+                audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=2)
+
+            # ajustes de voz
+            if tono != 1.0:
+                audio = audio._spawn(audio.raw_data, overrides={"frame_rate": int(audio.frame_rate * tono)}).set_frame_rate(sample_rate)
+            if velocidad != 1.0:
+                audio = audio.speedup(playback_speed=velocidad)
+            if volumen != 0.0:
+                audio += volumen
+            if suavizar:
+                audio = effects.normalize(audio)
+
+            play(audio)
+
+        except Exception as e:
+            print(f"[ERROR] Orca al hablar: {e}")
 
 def talk(text):
     hablar_orca(text, tono=1.55, velocidad=1, volumen=1)
@@ -223,29 +229,31 @@ def talk_async(text):
         threading.Thread(target=talk, args=(text,), daemon=True).start()
 
 def word_to_number(text):
-    words = text.split()
-    result = []
+    palabras = text.split()
+    out = []
 
-    for i in range(len(words)):
+    for p in palabras:
         try:
-            num = w2n.word_to_num(words[i])
-            result.append(str(num))
+            out.append(str(w2n.word_to_num(GoogleTranslator(source="es", target="en").translate(p))))
         except:
-            result.append(words[i])
+            out.append(p)
 
-    return ' '.join(result)
+    return " ".join(out)
 
 def clear_text_to_orca(text):
     permitido = string.ascii_letters + string.digits + string.punctuation + " áéíóúñÁÉÍÓÚÑ"
     return ''.join(c for c in text if c in permitido or unicodedata.category(c).startswith('Z'))
 
 def listen():
+    if audio_lock.locked():
+        time.sleep(0.5)
+
     rec = ""
     try:
         with sr.Microphone() as source:
-            listener.adjust_for_ambient_noise(source, duration=1)
+            listener.adjust_for_ambient_noise(source, duration=0.5)
             print("\n\nEscuchando...\n\n")
-            voice = listener.listen(source, timeout=10, phrase_time_limit=10)
+            voice = listener.listen(source)#, timeout=10, phrase_time_limit=10)
 
         rec = listener.recognize_google(voice, language='es-ES').lower()
         try:
@@ -255,49 +263,65 @@ def listen():
         print(rec)
 
     except sr.WaitTimeoutError as e:
-        print(f"\nTiempo de espera agotado: {e}\n")
-        return ""
+        pass
     except sr.UnknownValueError:
-        return ""  # No se pudo entender lo que dijiste
+        pass
     except sr.RequestError:
         print("Error al conectar con el servicio de reconocimiento de voz.")
-        pass
+
     return rec
 
 def listen_keyword():
-    porcupine = pvporcupine.create(
-        access_key=access_key,
-        keyword_paths=[keyword_path],
-        model_path=model_path
-        )  # puedes cambiar a otro hotword
-    pa = pyaudio.PyAudio()
-    stream = pa.open(
-        rate=porcupine.sample_rate,
-        channels=1,
-        format=pyaudio.paInt16,
-        input=True,
-        frames_per_buffer=porcupine.frame_length
-    )
+    porcupine = None
+    pa = None
+    stream = None
+    choice_saludo = None
 
     try:
-        keyword_detected = False
-        while not keyword_detected:
-            try:
-                pcm = stream.read(porcupine.frame_length, exception_on_overflow=False)
-                pcm_unpacked = struct.unpack_from("h" * porcupine.frame_length, pcm)
-                keyword_index = porcupine.process(pcm_unpacked)
+        porcupine = pvporcupine.create(
+            access_key=access_key,
+            keyword_paths=[keyword_path],
+            model_path=model_path
+            )  # puedes cambiar a otro hotword
+        pa = pyaudio.PyAudio()
+        stream = pa.open(
+            rate=porcupine.sample_rate,
+            channels=1,
+            format=pyaudio.paInt16,
+            input=True,
+            frames_per_buffer=porcupine.frame_length
+        )
 
-                if keyword_index >= 0:
-                    talk_async(choice(saludos_activacion))
-                    keyword_detected = True
-            except OSError as e:
-                print("[Audio Error]:", e)
-                time.sleep(0.5)
-                continue
+        print("\n\nEsperando palabra clave\n\n")
 
-    except KeyboardInterrupt:
-        print("Detenido por el usuario.")
+        try:
+            keyword_detected = False
+            while not keyword_detected:
+                try:
+                    pcm = stream.read(porcupine.frame_length, exception_on_overflow=False)
+                    pcm_unpacked = struct.unpack_from("h" * porcupine.frame_length, pcm)
+                    keyword_index = porcupine.process(pcm_unpacked)
+
+                    if keyword_index >= 0:
+                        choice_saludo = choice(saludos_activacion)
+                        keyword_detected = True
+                except OSError as e:
+                    print("[Audio Error]:", e)
+                    time.sleep(0.5)
+                    continue
+
+        except KeyboardInterrupt:
+            print("Detenido por el usuario.")
+
+    except Exception as e:
+        print(f"[Porcupine Error]: {e}")
+
     finally:
-        stream.close()
-        pa.terminate()
-        porcupine.delete()
+        if stream is not None:
+            stream.close()
+        if pa is not None:
+            pa.terminate()
+        if porcupine is not None:
+            porcupine.delete()
+        if choice_saludo:
+            talk_async(choice_saludo)

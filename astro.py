@@ -13,6 +13,9 @@ import difflib
 import unicodedata
 from random import choice
 import wikipedia
+import pyautogui
+import keyboard
+import traceback
 
 #TODO: Importaciones de archivos
 from spotify_manager import (
@@ -231,6 +234,30 @@ def system_status():
     time.sleep(5)
     talk_async(mensaje)
 
+def open_work(name):
+    ruta_base = r"C:\Users\elpaj\Documents"
+    ruta_proyecto = os.path.join(ruta_base, name)
+
+    if not os.path.exists(ruta_proyecto):
+        os.makedirs(ruta_proyecto)
+
+    pyautogui.hotkey("win", "1")  # Abrir VSCode en la barra de tareas
+
+    time.sleep(2)
+
+    # VS Code requiere enviar primero Ctrl+K
+    pyautogui.hotkey("ctrl", "k", "o")
+
+    time.sleep(2)
+
+    keyboard.write(ruta_proyecto)
+    time.sleep(0.3)
+    keyboard.press_and_release("enter")
+
+    time.sleep(0.5)
+    keyboard.press_and_release("enter")
+
+
 #!######      BUCLE PRINCIPAL      ######!#
 def run():
     try:
@@ -245,6 +272,8 @@ def run():
         while True:
             #! Esperar palabra clave
             listen_keyword()
+
+            time.sleep(2.5)
 
             rec = listen()
             if not rec:
@@ -405,14 +434,6 @@ def run():
 
 
                 #TODO: Sistema
-                elif "abre" in command or "inicia" in command:
-                    if "abre" in command:
-                        app = command.replace("abre", "").strip()
-                    else:
-                        app = command.replace("inicia", "").strip()
-
-                    app_init(app_name=app)
-
                 elif "vamos a trabajar" in command:
                     talk_async("Estoy preparando el entorno...")
                     app_init(app_name="visual studio")
@@ -424,6 +445,32 @@ def run():
                 elif "estado del sistema" in command or "informe del sistema" in command:
                     talk_async("Analizando telemetría del sistema señor...")
                     system_status()
+
+                elif any(word in command for word in ["nuevo proyecto", "inicia el proyecto",
+                                                    "abre el proyecto"]):
+                    if "abre el proyecto" in command:
+                        name = command.replace("abre el proyecto ", "")
+
+                        open_work(name=name)
+
+                    else:
+                        talk_async("¿Cómo desea llamar la carpeta, señor?")
+
+                        time.sleep(4)
+
+                        name = listen()
+
+                        if name:
+                            name = name.replace(" ", "_")
+                            open_work(name=name)
+
+                elif "abre" in command or "inicia" in command:
+                    if "abre" in command:
+                        app = command.replace("abre", "").strip()
+                    else:
+                        app = command.replace("inicia", "").strip()
+
+                    app_init(app_name=app)
 
 
                 #TODO Interacción con memoria
@@ -485,10 +532,10 @@ def run():
                         pass
 
     except Exception as e:
+        traceback.print_exc()
         print(f"[ERROR] Algo falló: {e}")
         talk_async("Problema detectado. Reiniciando sistemas...")
-        time.sleep(2)
-        os.execv(sys.executable, ['python'] + sys.argv)
+        input("Presiona ENTER para salir y ver el error...")
     except KeyboardInterrupt:
         talk_async("Hasta la próxima")
 

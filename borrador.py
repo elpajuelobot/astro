@@ -1,20 +1,16 @@
-import psutil
+from deep_translator import GoogleTranslator
+from word2number import w2n
 
-def system_status():
-    print("analizando...")
-    cpu = psutil.cpu_percent(interval=0.5)
-    ram = psutil.virtual_memory().percent
-    print("analizando...")
+def es_to_number(text):
+    palabras = text.split()
+    out = []
 
-    if cpu > 85 or ram > 85:
-        estado_general = "Atención, Señor. Los niveles de consumo son elevados."
-    else:
-        estado_general = "Todos los sistemas funcionan dentro de los parámetros normales."
+    for p in palabras:
+        try:
+            out.append(str(w2n.word_to_num(GoogleTranslator(source="es", target="en").translate(p))))
+        except:
+            out.append(p)
 
-    mensaje = (f"Informe de estado: La carga de la CPU es del {cpu} por ciento. "
-                f"El uso de memoria RAM es del {ram} por ciento."
-                f"{estado_general}")
+    return " ".join(out)
 
-    print(mensaje)
-
-system_status()
+print(es_to_number("Tengo dos perros"))
