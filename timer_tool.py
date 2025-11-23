@@ -16,7 +16,7 @@ def start_timer(duration):
     # --- Window Configuration ---
     root = tk.Tk()
     root.overrideredirect(True)
-    root.geometry("+10+10") # Initial position on screen
+    root.geometry("+10+10") # Posición en pantalla
     root.lift()
     root.wm_attributes("-topmost", True)
     root.wm_attributes("-transparentcolor", "white")
