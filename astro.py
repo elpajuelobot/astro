@@ -240,24 +240,9 @@ def open_work(name):
     ruta_base = r"C:\Users\elpaj\Documents"
     ruta_proyecto = os.path.join(ruta_base, name)
 
-    if not os.path.exists(ruta_proyecto):
-        os.makedirs(ruta_proyecto)
+    os.makedirs(ruta_proyecto, exist_ok=True)
 
-    pyautogui.hotkey("win", "1")  # Abrir VSCode en la barra de tareas
-
-    time.sleep(2)
-
-    # VS Code requiere enviar primero Ctrl+K
-    pyautogui.hotkey("ctrl", "k", "o")
-
-    time.sleep(2)
-
-    keyboard.write(ruta_proyecto)
-    time.sleep(0.3)
-    keyboard.press_and_release("enter")
-
-    time.sleep(0.5)
-    keyboard.press_and_release("enter")
+    subprocess.run(["code", ruta_proyecto], shell=True)
 
 
 #!######      BUCLE PRINCIPAL      ######!#
