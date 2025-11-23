@@ -17,6 +17,8 @@ import string
 from groq import Groq
 import json
 from deep_translator import GoogleTranslator
+import re
+from ddgs import DDGS
 
 #! Semaforo para controlar el audio
 audio_lock = threading.Lock()
@@ -67,6 +69,22 @@ def delete_memory():
     else:
         return True
 
+def get_information(query):
+    try:
+        print(f"--- BUSCANDO EN INTERNET: {query} ---")
+        results = DDGS().text(query, max_results=3)
+        if results:
+            summary = ""
+            for res in results:
+                summary += f"- Título: {res['title']}\n Resumen: {res['body']}\n"
+                print(summary)
+            return summary
+        return "No se han encontrado datos en internet"
+    except Exception as e:
+        print(f"Error de búsqueda")
+        return "Error al intentar buscar en internet"
+
+
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # Historial de conversación
@@ -83,6 +101,21 @@ chat_history = [
             "3. No uses listas, markdown, emojis ni jerga coloquial (nada de 'quillo' salvo que sea sarcasmo)."
             "4. Si te preguntan cómo estás, responde con elegancia (ej: 'Sistemas al 100%, Señor')."
             "5. Resides en Punta Umbría, tenlo en cuenta para el contexto."
+            "6. GESTIÓN DE MEMORIA (ESTRICTO):"
+            "   - SOLO debes guardar un recuerdo si el usuario afirma explícitamente un HECHO NUEVO, PERMANENTE y RELEVANTE sobre sí mismo."
+            "   - Ejemplos VÁLIDOS para guardar: 'Me llamo Hugo', 'Soy alérgico a las nueces', 'Mi perro se llama Thor', 'Me voy a Madrid el viernes'."
+            "   - Formato obligatorio: [MEMORY: El usuario tiene un perro llamado Thor]."
+            "   - PROHIBIDO GUARDAR (IMPORTANTE):"
+            "       * NO guardes interacciones ('El usuario preguntó la hora')."
+            "       * NO guardes lo que NO pasó ('No se mencionó música')."
+            "       * NO guardes comandos simples ('El usuario pidió abrir Spotify')."
+            "       * NO guardes estados temporales ('El usuario tiene hambre')."
+            "   - Si no hay un dato nuevo y permanente, NO escribas la etiqueta [MEMORY]."
+            "7. NO tienes conocimiento en tiempo real (noticias, clima, fechas de estrenos futuros). "
+            "   Si el usuario pregunta algo que requiere datos ACTUALIZADOS o de INTERNET, "
+            "   NO inventes. En su lugar, genera SOLAMENTE esta etiqueta: "
+            "   [SEARCH: consulta de búsqueda]."
+            "   Ejemplo: Usuario: '¿Cuándo juega el Madrid?' -> Tú: '[SEARCH: cuándo juega el real madrid próximo partido]'."
         )
     }
 ]
@@ -108,12 +141,47 @@ def AiBrain(prompt):
         chat_completion = groq_client.chat.completions.create(
             messages=chat_history,
             model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            max_tokens=150,
+            temperature=0.6,
+            max_tokens=200,
             timeout=10
         )
 
         ai_answer = chat_completion.choices[0].message.content
+
+        search_web = re.search(r"\[SEARCH:(.*?)\]", ai_answer)
+
+        if search_web:
+            query = search_web.group(1).strip()
+
+            web_results = get_information(query=query)
+
+            chat_history.append({
+                "role": "system",
+                "content": f"RESULTADOS DE BÚSQUEDA WEB PARA '{query}':\n{web_results}\n"
+                            f"Instrucción: Usa esta información para responder a la pregunta original del usuario. "
+                            f"Sé breve y natural, como si ya lo supieras."
+            })
+
+            chat_completion_2 = groq_client.chat.completions.create(
+                messages=chat_history,
+                model="llama-3.3-70b-versatile",
+                temperature=0.6,
+                max_tokens=200,
+                timeout=10
+            )
+
+            ai_answer = chat_completion_2.choices[0].message.content
+
+        memory_pattern = r"\[MEMORY:(.*?)\]"
+        match = re.search(memory_pattern, ai_answer)
+
+        if match:
+            new_memory_content = match.group(1).strip()
+
+            print(f">>>> DETECTADO NUEVO RECUERDO: {new_memory_content}")
+            memory_manager(new_memory=new_memory_content)
+
+            ai_answer = re.sub(memory_pattern, "", ai_answer).strip()
 
         chat_history.append({"role": "assistant", "content": ai_answer})
 
@@ -222,11 +290,13 @@ def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
             print(f"[ERROR] Orca al hablar: {e}")
 
 def talk(text):
+    text = clear_text_to_orca(text=text)
     hablar_orca(text, tono=1.55, velocidad=1, volumen=1)
 
 def talk_async(text):
-    if threading.active_count() < 2:
-        threading.Thread(target=talk, args=(text,), daemon=True).start()
+    #if threading.active_count() < 2:
+    text = clear_text_to_orca(text=text)
+    threading.Thread(target=talk, args=(text,), daemon=True).start()
 
 def word_to_number(text):
     palabras = text.split()
@@ -241,8 +311,11 @@ def word_to_number(text):
     return " ".join(out)
 
 def clear_text_to_orca(text):
-    permitido = string.ascii_letters + string.digits + string.punctuation + " áéíóúñÁÉÍÓÚÑ"
-    return ''.join(c for c in text if c in permitido or unicodedata.category(c).startswith('Z'))
+    text = ''.join(c for c in text if unicodedata.category(c)[0] != "C")
+
+    text = text.replace("\ufeff", "").replace("\u200b", "")
+
+    return text
 
 def listen():
     if audio_lock.locked():

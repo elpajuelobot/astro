@@ -136,6 +136,8 @@ def security():
     for i in range(4):
         talk_async("Introduzca código de seguridad para acceder")
 
+        time.sleep(2.5)
+
         code = listen()
 
         if code == secret_key:
@@ -289,6 +291,7 @@ def run():
                     while True:
                         if query == "":
                             talk_async("No has dicho nada. ¿Qué quieres que reproduzca en youtube?")
+                            time.sleep(3)
                             query = listen()
                             if query != "":
                                 break
@@ -323,10 +326,14 @@ def run():
                             .replace(" un ", " ")
                             .replace(" sobre ", " ")
                             .replace("sobre la", "")
+                            .replace(" que ", "")
+                            .replace(" qué ", "")
+                            .replace(" sabes ", "")
                             .strip())
 
                     if not query:
                         talk_async("¿Qué desea saber?")
+                        time.sleep(1.5)
                         query = listen().strip()
                         if not query:
                             talk_async("No le he entendido señor")
@@ -341,6 +348,8 @@ def run():
 
                         resumen_corto = wikipedia.summary(query, sentences=1)
                         talk_async(f"Información sobre {page.title} descargada, Señor. {resumen_corto}. ¿Desea que genere un informe detallado?")
+
+                        time.sleep(3)
 
                         summary = listen().strip()
                         if "si" in summary or "sí" in summary:
@@ -501,6 +510,8 @@ def run():
                     talk_async("Advertencia. Señor, está a punto de eliminar" \
                                 "permanentemente todos los datos de mi memoria" \
                                 "¿Desea continuar?")
+
+                    time.sleep(6.5)
 
                     confirmacion = listen()
 
