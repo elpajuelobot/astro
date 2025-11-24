@@ -352,7 +352,7 @@ def run():
                     guardar_resumen()
 
                 #TODO: Spotify
-                elif "mi lista" in command:
+                elif "pon spotify" in command or "pon música" in command:
                     talk_async("Reproduciendo The Best...")
                     spotify = spotify_my_list(talk_async)
 

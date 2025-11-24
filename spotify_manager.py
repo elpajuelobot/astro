@@ -44,6 +44,10 @@ def Spotify(talk):
                 talk("Abriendo spotify señor")
                 sleep(5)
                 pyautogui.press('space')
+            else:
+                pyautogui.hotkey("win", "7")
+                sleep(2)
+                pyautogui.press('space')
 
             sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
                 client_id=client_id,
