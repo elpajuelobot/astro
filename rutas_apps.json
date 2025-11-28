@@ -11,5 +11,7 @@
     "microsoft store": "explorer.exe shell:AppsFolder\\Microsoft.WindowsStore_8wekyb3d8bbwe!App",
     "base de datos": "C:\\Program Files\\pgAdmin 4\\bin\\pgAdmin4.exe",
     "putty": "C:\\Program Files\\PuTTY\\putty.exe",
-    "cmd": "cmd.exe"
+    "cmd": "cmd.exe",
+    "servidor": "C:\\Users\\elpaj\\Desktop\\servidor app padel.lnk",
+    "winscp": "C:\\Program Files (x86)\\WinSCP\\WinSCP.exe"
 }

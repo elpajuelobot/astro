@@ -30,6 +30,7 @@ from system_config import (
                             clear_text_to_orca, memory_manager,
                             delete_memory
                             )
+from security import security, server
 
 
 #################################################################################################################!
@@ -40,7 +41,6 @@ load_dotenv()
 VBOXMANAGE = os.getenv("VBOXMANAGE")
 VM_NAME = os.getenv("VM_NAME")
 api_key = os.getenv("WEATHER_KEY")
-secret_key = os.getenv("CLAVE")
 
 # Variables de configuración
 stop = False
@@ -107,13 +107,15 @@ def app_init(app_name):
             subprocess.Popen(ruta, cwd=OBS_DIR)
         elif new_app == "google":
             subprocess.Popen([ruta, "--profile-directory=Default"])
+        elif new_app == "servidor":
+            talk_async("Abriendo el servidor...")
+            time.sleep(2)
+            server(ruta, talk_async)
         else:
             subprocess.Popen(ruta)
         talk_async(f"Abriendo {new_app}")
     else:
         talk_async(f"Todavía no tengo acceso a {new_app} señor.")
-
-
 
 
 def start_kali():
@@ -126,33 +128,6 @@ def start_kali():
         talk_async("No se ha podido iniciar Kali Linux señor. Le muestro el error en pantalla.")
         print(f"No se pudo iniciar la VM «{VM_NAME}».", file=sys.stderr)
         sys.exit(1)
-
-
-def lock_windows_pc():
-    ctypes.windll.user32.LockWorkStation()
-
-
-def security():
-    for i in range(4):
-        talk_async("Introduzca código de seguridad para acceder")
-
-        time.sleep(2.5)
-
-        code = listen()
-
-        if code == secret_key:
-            talk_async("Accediendo...")
-            return True
-        else:
-            talk_async(f"Código introducido incorrecto.")
-            time.sleep(1.3)
-
-        if i == 4:
-            talk_async("Bloqueando sistema.")
-            time.sleep(1.5)
-            lock_windows_pc()
-            return False
-
 
 
 def guardar_resumen():
@@ -391,7 +366,7 @@ def run():
 
                 #TODO: Kali linux
                 elif "kali" in command or "cali" in command:
-                    acceso = security()
+                    acceso = security(talk_async, listen)
                     if acceso:
                         talk_async("Abriendo Kali linux...")
                         start_kali()
@@ -458,12 +433,14 @@ def run():
                             name = name.replace(" ", "_")
                             open_work(name=name)
 
-                elif "abre" in command or "inicia" in command:
-                    if "abre" in command:
-                        app = command.replace("abre", "").strip()
-                    else:
-                        app = command.replace("inicia", "").strip()
-
+                elif any(word in command for word in ["abre", "accede",
+                                                    "acceso", "inicia"]):
+                    app = (command
+                            .replace(" el ", "")
+                            .replace("accede al", "")
+                            .replace("acceso al", "")
+                            .replace("inicia", "")
+                            .replace("abre", "").strip())
                     app_init(app_name=app)
 
 
@@ -516,6 +493,7 @@ def run():
                         stop_timer_externally()
                     break
 
+                #TODO Uso de AI
                 else:
                     if len(command) > 2:
                         print(f"Consultando IA: {command}")

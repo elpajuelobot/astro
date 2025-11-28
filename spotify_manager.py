@@ -67,8 +67,12 @@ def Spotify(talk):
         talk("abre primero spotify")
         return None
     except SpotifyException as e:
-        talk("No he conseguido ejecutar Spotify señor")
-        print("Error spotify:", e)
+        pyautogui.hotkey("win", "7")
+        sleep(2)
+        pyautogui.press('space')
+        sleep(2)
+        #talk("No he conseguido ejecutar Spotify señor")
+        #print("Error spotify:", e)
 
 def spotify_my_list(talk, playlist=1):
     sp = Spotify(talk)
