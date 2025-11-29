@@ -1,8 +1,6 @@
-import winsound
-from time import sleep
+import json
 
-winsound.MessageBeep(winsound.MB_ICONHAND)  # Error
-sleep(2)
-winsound.MessageBeep(winsound.MB_ICONASTERISK)
-sleep(2)
-winsound.MessageBeep()
+with open("astro_promt.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+print(data['content'])

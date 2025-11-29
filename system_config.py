@@ -13,14 +13,13 @@ import pvorca
 from pydub import AudioSegment, effects
 from pydub.playback import play
 from random import choice
-import string
 from groq import Groq
 import json
 from deep_translator import GoogleTranslator
 import re
 from ddgs import DDGS
 
-#! Semaforo para controlar el audio
+# ! Semaforo para controlar el audio
 audio_lock = threading.Lock()
 
 # Importar variables
@@ -30,6 +29,7 @@ keyword_path = os.getenv("KEYWORD_PATH")
 model_path = os.getenv("MODEL_PATH")
 model_path_2 = os.getenv("MODEL_PATH_2")
 MEMORY_FILE = "astro_memory.json"
+PROMT_FILE = "astro_promt.json"
 
 
 def memory_manager(new_memory=None):
@@ -56,18 +56,20 @@ def memory_manager(new_memory=None):
             return "No tengo recuerdos previos."
         return "\n".join(data["memories"])
 
+
 def delete_memory():
     if os.path.exists(MEMORY_FILE):
         try:
             os.remove(MEMORY_FILE)
             global chat_history
-            chat_history = [chat_history[0]] 
+            chat_history = [chat_history[0]]
             return True
         except Exception as e:
             print(f"Error al borrar memoria: {e}")
             return False
     else:
         return True
+
 
 def get_information(query):
     try:
@@ -76,12 +78,13 @@ def get_information(query):
         if results:
             summary = ""
             for res in results:
-                summary += f"- Título: {res['title']}\n Resumen: {res['body']}\n"
+                summary += (f"- Título: {res['title']}\n \
+                            Resumen: {res['body']}\n")
                 print(summary)
             return summary
         return "No se han encontrado datos en internet"
     except Exception as e:
-        print(f"Error de búsqueda")
+        print(f"Error de búsqueda: {e}")
         return "Error al intentar buscar en internet"
 
 
@@ -119,6 +122,7 @@ chat_history = [
         )
     }
 ]
+
 
 def AiBrain(prompt):
     global chat_history
@@ -191,6 +195,7 @@ def AiBrain(prompt):
         print(f"Error en Groq: {e}")
         return "Lo siento señor, mis redes neuronales no responden ahora mismo."
 
+
 def generar_resumen_documento(texto_largo):
     try:
         texto_recortado = texto_largo[:25000] 
@@ -217,20 +222,20 @@ def generar_resumen_documento(texto_largo):
 name = "astro"
 listener = sr.Recognizer()
 saludos_activacion = [
-    "Dime",  
-    "¿Qué necesita, señor?",  
-    "Le escucho",  
-    "Aquí estoy",  
-    "Preparado para ayudar",  
-    "¿Sí, Hugo?",  
-    "Adelante",  
-    "¿Qué ordena?",  
-    "Listo y operativo",  
-    "A sus órdenes",  
-    "¿Qué desea saber?",  
-    "Estoy escuchando",  
-    "Activo y esperando instrucciones",  
-    "¿Qué hay que hacer?",  
+    "Dime",
+    "¿Qué necesita, señor?",
+    "Le escucho",
+    "Aquí estoy",
+    "Preparado para ayudar",
+    "¿Sí, Hugo?",
+    "Adelante",
+    "¿Qué ordena?",
+    "Listo y operativo",
+    "A sus órdenes",
+    "¿Qué desea saber?",
+    "Estoy escuchando",
+    "Activo y esperando instrucciones",
+    "¿Qué hay que hacer?",
     "Diga, jefe",
     "Ya estoy aquí",
     "¿Otra misión, señor?",
@@ -243,6 +248,7 @@ orca = pvorca.create(
     access_key=access_key,
     model_path=model_path_2
     )
+
 
 def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
                 eco=False, reverb=False, robot=False, suavizar=True):
@@ -289,14 +295,17 @@ def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
         except Exception as e:
             print(f"[ERROR] Orca al hablar: {e}")
 
+
 def talk(text):
     text = clear_text_to_orca(text=text)
     hablar_orca(text, tono=1.55, velocidad=1, volumen=1)
+
 
 def talk_async(text):
     #if threading.active_count() < 2:
     text = clear_text_to_orca(text=text)
     threading.Thread(target=talk, args=(text,), daemon=True).start()
+
 
 def word_to_number(text):
     palabras = text.split()
@@ -310,12 +319,14 @@ def word_to_number(text):
 
     return " ".join(out)
 
+
 def clear_text_to_orca(text):
     text = ''.join(c for c in text if unicodedata.category(c)[0] != "C")
 
     text = text.replace("\ufeff", "").replace("\u200b", "")
 
     return text
+
 
 def listen():
     if audio_lock.locked():
@@ -343,6 +354,7 @@ def listen():
         print("Error al conectar con el servicio de reconocimiento de voz.")
 
     return rec
+
 
 def listen_keyword():
     porcupine = None
