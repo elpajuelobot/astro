@@ -29,7 +29,7 @@ def security(talk_async, listen):
             talk_async("Accediendo...")
             return True
         else:
-            talk_async(f"Código introducido incorrecto.")
+            talk_async("Código introducido incorrecto.")
             time.sleep(1.3)
 
         if i == 4:
@@ -38,10 +38,13 @@ def security(talk_async, listen):
             lock_windows_pc()
             return False
 
+
 def server(ruta, talk_async):
-    talk_async("Señor, debe introducir la contraseña para poder acceder al servidor")
+    talk_async("Señor, debe introducir la contraseña \
+                para poder acceder al servidor")
     time.sleep(4)
     winsound.MessageBeep()
+
     def main(page: ft.Page):
         page.title = "Acceso seguridad - Astro Security"
         page.window.width = 400
@@ -55,7 +58,9 @@ def server(ruta, talk_async):
         def verificar_password(e):
             if password_input.value == password:
                 # Si la clave es correcta
-                page.snack_bar = ft.SnackBar(ft.Text("Acceso concedido. Abriendo servidor..."))
+                page.snack_bar = ft.SnackBar(
+                    ft.Text("Acceso concedido. Abriendo servidor...")
+                    )
                 page.snack_bar.open = True
                 page.update()
 
@@ -94,7 +99,9 @@ def server(ruta, talk_async):
         )
 
         page.add(
-            ft.Text("Autenticación requerida", size=20, weight=ft.FontWeight.BOLD),
+            ft.Text(
+                "Autenticación requerida", size=20, weight=ft.FontWeight.BOLD
+                ),
             password_input,
             submit_btn
         )

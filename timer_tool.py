@@ -16,13 +16,15 @@ def start_timer(duration):
     # --- Window Configuration ---
     root = tk.Tk()
     root.overrideredirect(True)
-    root.geometry("+10+10") # Posición en pantalla
+    root.geometry("+10+10")  # Posición en pantalla
     root.lift()
     root.wm_attributes("-topmost", True)
     root.wm_attributes("-transparentcolor", "white")
 
     # --- Label for Numbers ---
-    label = tk.Label(root, text="", font=("Helvetica", 100, "bold"), fg="grey", bg="white")
+    label = tk.Label(
+                    root, text="", font=("Helvetica", 100, "bold"),
+                    fg="grey", bg="white")
     label.pack()
 
     print("Starting visual timer...")
@@ -61,28 +63,32 @@ def start_timer(duration):
     winsound.Beep(440, 1500)
     print("\nTime's up!")
 
+
 def start_thread(duration):
     global _timer_thread, _stop_timer_flag
     if _timer_thread and _timer_thread.is_alive():
         print("Ya hay un temporizador activo")
         return False
     _stop_timer_flag = False
-    _timer_thread = threading.Thread(target=start_timer, args=(duration,), daemon=True)
+    _timer_thread = threading.Thread(
+                            target=start_timer,
+                            args=(duration,),
+                            daemon=True
+                            )
     _timer_thread.start()
     return True
+
 
 # --- Function to parse the input text ---
 def parse_duration_string(input_string):
     s = input_string.strip().lower()
 
-    # 1) Buscamos en cualquier parte algo como “1 minuto”, “30 s”, “2 horas”…
     m = re.search(r'(\d+)\s*(segundos?|s|minutos?|m(?!s)|horas?|h)', s)
     if m:
         n = int(m.group(1))
-        unit = m.group(2)[0]  # primera letra: s, m u h
-        return n * {'s':1, 'm':60, 'h':3600}[unit]
+        unit = m.group(2)[0]
+        return n * {'s': 1, 'm': 60, 'h': 3600}[unit]
 
-    # 2) Fallback al parser original (inglés, fechas completas…)
     cal = pdt.Calendar()
     now = datetime.now()
     result, status = cal.parseDT(input_string, sourceTime=now)
@@ -92,12 +98,14 @@ def parse_duration_string(input_string):
 
     return None
 
+
 def stop_timer_externally():
     global _stop_timer_flag
     if _timer_thread and _timer_thread.is_alive():
         _stop_timer_flag = True
-        return True # True = activo
-    return False # False = inactivo
+        return True  # True = activo
+    return False  # False = inactivo
+
 
 def is_timer_active():
     global _timer_thread

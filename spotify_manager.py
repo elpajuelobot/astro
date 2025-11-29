@@ -17,14 +17,19 @@ redirect_uri = os.getenv("REDIRECT_URI")
 playlist_1_In = os.getenv("PLAYLIST_1")
 playlist_2_Es = os.getenv("PLAYLIST_2")
 
+
 def is_app_open(app_name: str) -> bool:
     for proc in psutil.process_iter(['name']):
         try:
-            if proc.info['name'] and app_name.lower() in proc.info['name'].lower():
+            if (
+                    proc.info['name'] and app_name.lower()
+                    in proc.info['name'].lower()
+                    ):
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
     return False
+
 
 def wait_for_device(sp, timeout=10):
     """Espera hasta que Spotify tenga un dispositivo activo"""
@@ -34,6 +39,7 @@ def wait_for_device(sp, timeout=10):
             return True
         sleep(1)
     return False
+
 
 def Spotify(talk):
     try:
@@ -57,7 +63,8 @@ def Spotify(talk):
             ))
 
             if not wait_for_device(sp, timeout=10):
-                talk("No se ha detectado todavía ha spotify señor, vuelve a intentarlo por favor")
+                talk("No se ha detectado todavía ha spotify señor, \
+                    vuelve a intentarlo por favor")
                 return None
 
             return sp
@@ -67,16 +74,16 @@ def Spotify(talk):
         talk("abre primero spotify")
         return None
     except SpotifyException as e:
+        print("Error spotify:", e)
         pyautogui.hotkey("win", "7")
         sleep(2)
         pyautogui.press('space')
         sleep(2)
-        #talk("No he conseguido ejecutar Spotify señor")
-        #print("Error spotify:", e)
+
 
 def spotify_my_list(talk, playlist=1):
     sp = Spotify(talk)
-    if sp == None:
+    if sp is None:
         talk("No se ha podido abrir spotify")
         return False
     try:
@@ -90,25 +97,32 @@ def spotify_my_list(talk, playlist=1):
             talk("No encuentro la lista")
     except SpotifyException as e:
         if "No active device" in str(e):
-            talk("Spotify aún no estaba listo, pero debería empezar en un momento.")
+            talk("Spotify aún no estaba listo, \
+                pero debería empezar en un momento.")
             sleep(2)
             # reintentar una vez
             try:
                 if playlist == 1:
-                    sp.start_playback(context_uri=f"spotify:playlist:{playlist_1_In}")
+                    sp.start_playback(
+                        context_uri=f"spotify:playlist:{playlist_1_In}"
+                        )
                 elif playlist == 2:
-                    sp.start_playback(context_uri=f"spotify:playlist:{playlist_2_Es}")
+                    sp.start_playback(
+                        context_uri=f"spotify:playlist:{playlist_2_Es}"
+                        )
                 else:
                     talk("No encuentro la lista")
-            except:
+            except SpotifyException:
+                print("No se ha podido")
                 pass
         else:
             talk("Ha ocurrido un error con Spotify señor.")
             print("Error spotify:", e)
 
+
 def spotify_play(talk):
     sp = Spotify(talk)
-    if sp == None:
+    if sp is None:
         talk("No se ha podido abrir spotify")
         return False
     try:
@@ -116,15 +130,17 @@ def spotify_play(talk):
         sp.start_playback()
     except SpotifyException as e:
         if "No active device" in str(e):
-            talk("Spotify aún no estaba listo, pero debería empezar en un momento.")
+            talk("Spotify aún no estaba listo, \
+                pero debería empezar en un momento.")
             sleep(2)
         else:
             talk("Ha ocurrido un error con Spotify señor.")
             print("Error spotify:", e)
 
+
 def spotify_pause(talk):
     sp = Spotify(talk)
-    if sp == None:
+    if sp is None:
         talk("No se ha podido abrir spotify")
         return False
     try:
@@ -134,9 +150,10 @@ def spotify_pause(talk):
         talk("No he conseguido ejecutar Spotify señor")
         print("Error spotify:", e)
 
+
 def spotify_next(talk):
     sp = Spotify(talk)
-    if sp == None:
+    if sp is None:
         talk("No se ha podido abrir spotify")
         return False
     try:
@@ -146,9 +163,10 @@ def spotify_next(talk):
         talk("No he conseguido ejecutar Spotify señor")
         print("Error spotify:", e)
 
+
 def spotify_previous(talk):
     sp = Spotify(talk)
-    if sp == None:
+    if sp is None:
         talk("No se ha podido abrir spotify")
         return False
     try:
@@ -158,9 +176,10 @@ def spotify_previous(talk):
         talk("No he conseguido ejecutar Spotify señor")
         print("Error spotify:", e)
 
+
 def spotify_search_song(query, talk):
     sp = Spotify(talk)
-    if sp == None:
+    if sp is None:
         talk("No se ha podido abrir spotify")
         return False
     try:
@@ -175,9 +194,10 @@ def spotify_search_song(query, talk):
         talk("No he conseguido ejecutar Spotify señor")
         print("Error spotify:", e)
 
+
 def spotify_get_volume(talk):
     sp = Spotify(talk)
-    if sp == None:
+    if sp is None:
         talk("No se ha podido abrir spotify")
         return False
     playback = sp.current_playback()
@@ -185,9 +205,10 @@ def spotify_get_volume(talk):
         return playback['device']['volume_percent']
     return None
 
+
 def spotify_set_volume(volume, talk):
     sp = Spotify(talk)
-    if sp == None:
+    if sp is None:
         talk("No se ha podido abrir spotify")
         return
     sp.volume(volume)
