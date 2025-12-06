@@ -1,6 +1,9 @@
-import json
+import os
 
-with open("astro_promt.json", "r", encoding="utf-8") as f:
-    data = json.load(f)
+usuario = os.environ["USERNAME"]
 
-print(data['content'])
+inicio_usuario = fr"C:\Users\{usuario}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs"
+inicio_global = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs"
+
+print(inicio_usuario)
+print(inicio_global)

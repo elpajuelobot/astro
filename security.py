@@ -67,7 +67,7 @@ def server(ruta, talk_async):
                 # Abrir el acceso directo
                 try:
                     subprocess.Popen(ruta, shell=True)
-                    time.sleep(5)
+                    time.sleep(4)
                     pyautogui.write(password)
                     time.sleep(1)
                     pyautogui.press("enter")

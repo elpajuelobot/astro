@@ -18,6 +18,7 @@ import json
 from deep_translator import GoogleTranslator
 import re
 from ddgs import DDGS
+import winsound
 
 # ! Semaforo para controlar el audio
 audio_lock = threading.Lock()
@@ -336,6 +337,7 @@ def listen():
     try:
         with sr.Microphone() as source:
             listener.adjust_for_ambient_noise(source, duration=0.5)
+            winsound.Beep(550, 125)
             print("\n\nEscuchando...\n\n")
             voice = listener.listen(source)#, timeout=10, phrase_time_limit=10)
 

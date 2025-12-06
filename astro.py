@@ -104,6 +104,8 @@ def app_init(app_name):
             talk_async("Abriendo el servidor...")
             time.sleep(2)
             server(ruta, talk_async)
+        elif new_app == "visual studio":
+            subprocess.run("code", shell=True)
         else:
             subprocess.Popen(ruta)
         talk_async(f"Abriendo {new_app}")

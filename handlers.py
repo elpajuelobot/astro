@@ -38,8 +38,16 @@ class MusicHandler(CommandHandler):
 
     def execute(self, command, **kwargs):
         if "pon spotify" in command or "pon música" in command:
-            self.talk("Reproduciendo The Best...")
-            spotify_my_list(self.talk)
+            self.talk("Reproduciendo spotify...")
+            spotify_play(self.talk)
+
+        elif "the best" in command or "spanish version" in command:
+            if "the best" in command:
+                self.talk("Reproduciendo The best...")
+                spotify_my_list(self.talk, playlist=1)
+            elif "spanish version" in command:
+                self.talk("Reproduciendo spanish version...")
+                spotify_my_list(self.talk, playlist=2)
 
         elif "sigue la música" in command or "continúa la música" in command:
             self.talk("Reproduciendo...")
@@ -66,12 +74,34 @@ class MusicHandler(CommandHandler):
             spotify_search_song(query, self.talk)
 
         elif "sube el volumen" in command:
-            original = spotify_get_volume(self.talk)
-            spotify_set_volume(original + 10, self.talk)
+            if "máximo" in command:
+                spotify_set_volume(100, self.talk)
+            elif "%" in command or " al " in command:
+                volumen = int((command
+                            .replace("sube el volumen", "")
+                            .replace("%", "")
+                            .replace(" al ", "")
+                            .strip()))
+                spotify_set_volume(volumen, self.talk)
+            else:
+                original = spotify_get_volume(self.talk)
+                spotify_set_volume(original + 10, self.talk)
 
         elif "baja el volumen" in command or "baja la voz" in command:
-            original = spotify_get_volume(self.talk)
-            spotify_set_volume(original - 10, self.talk)
+            if "mínimo" in command:
+                spotify_set_volume(0, self.talk)
+            elif "%" in command or " al " in command:
+                volumen = int((command
+                            .replace("baja el volumen", "")
+                            .replace("baja la voz", "")
+                            .replace("%", "")
+                            .replace(" al ", "")
+                            .strip()))
+                spotify_set_volume(volumen, self.talk)
+            else:
+                original = spotify_get_volume(self.talk)
+                spotify_set_volume(original - 10, self.talk)
+
 
 
 class SystemHandler(CommandHandler):

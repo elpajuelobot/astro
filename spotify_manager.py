@@ -50,10 +50,10 @@ def Spotify(talk):
                 talk("Abriendo spotify señor")
                 sleep(5)
                 pyautogui.press('space')
-            else:
-                pyautogui.hotkey("win", "7")
-                sleep(2)
-                pyautogui.press('space')
+            #else:
+            #    pyautogui.hotkey("win", "7")
+            #    sleep(2)
+            #    pyautogui.press('space')
 
             sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
                 client_id=client_id,
@@ -102,6 +102,10 @@ def spotify_my_list(talk, playlist=1):
             sleep(2)
             # reintentar una vez
             try:
+                pyautogui.hotkey("win", "7")
+                sleep(2)
+                pyautogui.press('space')
+                sleep(2)
                 if playlist == 1:
                     sp.start_playback(
                         context_uri=f"spotify:playlist:{playlist_1_In}"
