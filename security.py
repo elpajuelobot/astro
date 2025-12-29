@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 import os
 import subprocess
 import flet as ft
-import pyautogui
 import winsound
+import urllib.parse
 
 load_dotenv()
 
@@ -39,7 +39,7 @@ def security(talk_async, listen):
             return False
 
 
-def server(ruta, talk_async):
+def server(talk_async):
     talk_async("Señor, debe introducir la contraseña \
                 para poder acceder al servidor")
     time.sleep(4)
@@ -66,11 +66,8 @@ def server(ruta, talk_async):
 
                 # Abrir el acceso directo
                 try:
-                    subprocess.Popen(ruta, shell=True)
-                    time.sleep(4)
-                    pyautogui.write(password)
-                    time.sleep(1)
-                    pyautogui.press("enter")
+                    command = f'winscp.exe "servidor app padel" /password="{password.strip()}"'
+                    subprocess.Popen(command)
 
                 except Exception as ex:
                     print(f"Error al abrir la ruta: {ex}")

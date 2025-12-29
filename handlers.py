@@ -17,6 +17,9 @@ from system_config import (
                             memory_manager, delete_memory,
                             AiBrain, clear_text_to_orca
                             )
+import pyautogui
+import threading
+import pyperclip
 
 
 class CommandHandler:
@@ -33,19 +36,20 @@ class CommandHandler:
 
 class MusicHandler(CommandHandler):
     def can_handle(self, command):
-        keywords = ["spotify", "música", "canción", "voz", "volumen"]
+        keywords = ["spotify", "música", "canción", "voz", "volumen", "pon"]
         return any(k in command for k in keywords)
 
     def execute(self, command, **kwargs):
         if "pon spotify" in command or "pon música" in command:
             self.talk("Reproduciendo spotify...")
-            spotify_play(self.talk)
+            spotify_my_list(self.talk)
 
-        elif "the best" in command or "spanish version" in command:
+        elif ("pon" in command and "the best" in command or
+                "pon" in command and "spanish version" in command or "spanish versión" in command):
             if "the best" in command:
                 self.talk("Reproduciendo The best...")
                 spotify_my_list(self.talk, playlist=1)
-            elif "spanish version" in command:
+            elif "spanish version" in command or "spanish versión" in command:
                 self.talk("Reproduciendo spanish version...")
                 spotify_my_list(self.talk, playlist=2)
 
@@ -101,7 +105,6 @@ class MusicHandler(CommandHandler):
             else:
                 original = spotify_get_volume(self.talk)
                 spotify_set_volume(original - 10, self.talk)
-
 
 
 class SystemHandler(CommandHandler):
@@ -366,6 +369,41 @@ class MemoryHandler(CommandHandler):
                 self.talk("Cancelando protocolo de borrado")
 
 
+class CodeAssintantHandler(CommandHandler):
+    def can_handle(self, command):
+        keywords = ["escribe un código", "ejemplo de", "cómo usar"]
+        return any(k in command for k in keywords)
+
+    def execute(self, command, **kwargs):
+        self.talk("Claro señor, aquí tiene un ejemplo.")
+
+        prompt_especifico = (
+            f"El usuario quiere {command}. "
+            "Responde ÚNICAMENTE con este formato: "
+            "EXPLICACION: (breve frase)\n "
+            "CODIGO:\n"
+            "(aquí escribes el código real, con saltos de línea, sangrías y sin símbolos extraños)"
+        )
+
+        ai_answer = AiBrain(prompt_especifico)
+
+        if "CODIGO" in ai_answer:
+            parts = ai_answer.split("CODIGO:")
+            explicacion = parts[0].replace("EXPLICACION:", "").strip()
+            clean_code = parts[1].strip()
+
+            self.talk(explicacion)
+
+            def write_code():
+                time.sleep(1.5)
+                pyperclip.copy(clean_code)
+                pyautogui.hotkey("ctrl", "v")
+
+            threading.Thread(target=write_code, daemon=True).start()
+        else:
+            self.talk("Lo siento señor, no he podido procesar el código.")
+
+
 class OtherQuestionsHandler(CommandHandler):
     def can_handle(self, command):
         keywords = [
@@ -411,6 +449,7 @@ class AstroBrain:
             SearchHandler(talk_async, listen),
             TimerHandler(talk_async, listen),
             MemoryHandler(talk_async, listen),
+            CodeAssintantHandler(talk_async, listen),
             OtherQuestionsHandler(talk_async, listen),
             AIBrainHandler(talk_async, listen)
         ]

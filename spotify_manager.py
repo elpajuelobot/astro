@@ -46,14 +46,10 @@ def Spotify(talk):
         with open("rutas_apps.json", "r", encoding="utf-8") as f:
             rutas = json.load(f)
             if not is_app_open("Spotify"):
-                subprocess.Popen([rutas["spotify"]])
-                talk("Abriendo spotify señor")
-                sleep(5)
+                talk("Abriendo Spotify señor")
+                pyautogui.hotkey("win", "7")
+                sleep(2)
                 pyautogui.press('space')
-            #else:
-            #    pyautogui.hotkey("win", "7")
-            #    sleep(2)
-            #    pyautogui.press('space')
 
             sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
                 client_id=client_id,

@@ -103,7 +103,7 @@ def app_init(app_name):
         elif new_app == "servidor":
             talk_async("Abriendo el servidor...")
             time.sleep(2)
-            server(ruta, talk_async)
+            server(talk_async)
         elif new_app == "visual studio":
             subprocess.run("code", shell=True)
         else:
@@ -213,8 +213,8 @@ def system_status():
             dentro de los parámetros normales."
 
     mensaje = (
-                "Informe de estado:"
-                f"La carga de la CPU es del {cpu} por ciento. "
+                "Informe de estado"
+                f"La carga de la CPU es del {cpu} por ciento."
                 f"El uso de memoria RAM es del {ram} por ciento."
                 f"{estado_general}")
 
@@ -257,7 +257,7 @@ def run():
             # ! Esperar palabra clave
             listen_keyword()
 
-            time.sleep(2.5)
+            time.sleep(0.2)
 
             rec = listen()
             if not rec:

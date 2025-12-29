@@ -22,6 +22,7 @@ import winsound
 
 # ! Semaforo para controlar el audio
 audio_lock = threading.Lock()
+stop_audio_event = threading.Event()
 
 # Importar variables
 load_dotenv()
@@ -120,6 +121,8 @@ chat_history = [
             "   NO inventes. En su lugar, genera SOLAMENTE esta etiqueta: "
             "   [SEARCH: consulta de búsqueda]."
             "   Ejemplo: Usuario: '¿Cuándo juega el Madrid?' -> Tú: '[SEARCH: cuándo juega el real madrid próximo partido]'."
+            "8. Cuando se te pida código, asegúrate de usar la sintaxis correcta de Python. Los diccionarios usan llaves,"
+            "   no comillas simples para los puntos. Escribe el código en multilínea, NUNCA en una sola línea"
         )
     }
 ]
@@ -239,9 +242,7 @@ saludos_activacion = [
     "¿Qué hay que hacer?",
     "Diga, jefe",
     "Ya estoy aquí",
-    "¿Otra misión, señor?",
-    "Procesando energía… listo.",
-    "Configuración óptima, ¿qué sigue?"
+    "¿Otra misión, señor?"
 ]
 
 
@@ -254,6 +255,7 @@ orca = pvorca.create(
 def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
                 eco=False, reverb=False, robot=False, suavizar=True):
     with audio_lock:
+        stop_audio_event.clear()
         try:
             if not texto:
                 return
@@ -290,6 +292,9 @@ def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
                 audio += volumen
             if suavizar:
                 audio = effects.normalize(audio)
+
+            if stop_audio_event.is_set():
+                return
 
             play(audio)
 
@@ -330,16 +335,20 @@ def clear_text_to_orca(text):
 
 
 def listen():
-    if audio_lock.locked():
-        time.sleep(0.5)
+    #if audio_lock.locked():
+    #    time.sleep(0.2)
 
     rec = ""
     try:
         with sr.Microphone() as source:
-            listener.adjust_for_ambient_noise(source, duration=0.5)
             winsound.Beep(550, 125)
+            listener.adjust_for_ambient_noise(source, duration=0.2)
+            listener.pause_threshold = 1.2
+            listener.dynamic_energy_threshold = False
+            listener.energy_threshold = 400
+            listener.non_speaking_duration = 0.5
             print("\n\nEscuchando...\n\n")
-            voice = listener.listen(source)#, timeout=10, phrase_time_limit=10)
+            voice = listener.listen(source, timeout=10, phrase_time_limit=12)
 
         rec = listener.recognize_google(voice, language='es-ES').lower()
         try:
@@ -390,6 +399,7 @@ def listen_keyword():
                     keyword_index = porcupine.process(pcm_unpacked)
 
                     if keyword_index >= 0:
+                        stop_audio_event.set()
                         choice_saludo = choice(saludos_activacion)
                         keyword_detected = True
                 except OSError as e:
