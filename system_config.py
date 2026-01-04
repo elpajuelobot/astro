@@ -19,10 +19,14 @@ from deep_translator import GoogleTranslator
 import re
 from ddgs import DDGS
 import winsound
+from pynput import keyboard
 
 # ! Semaforo para controlar el audio
 audio_lock = threading.Lock()
 stop_audio_event = threading.Event()
+# ! Detectar teclado para habilitar el micro
+mic_unlock_event = threading.Event()
+keyboard_listener = None
 
 # Importar variables
 load_dotenv()
@@ -422,3 +426,22 @@ def listen_keyword():
             porcupine.delete()
         if choice_saludo:
             talk_async(choice_saludo)
+
+
+def wait_for_mic_unlock():
+    mic_unlock_event.clear()
+    print("[SISTEMA] Micrófono silenciado")
+
+    def on_activate():
+        print("Reactivando micrófono...")
+        mic_unlock_event.set()
+
+    hotkeys = {
+        '<ctrl>+<shift>+m': on_activate,
+        '<ctrl>+<shift>+M': on_activate
+    }
+
+    with keyboard.GlobalHotKeys(hotkeys=hotkeys) as h:
+        mic_unlock_event.wait()
+
+    return True

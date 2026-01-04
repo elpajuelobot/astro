@@ -12,12 +12,14 @@ import difflib
 import unicodedata
 from random import choice
 import traceback
+import threading
 
 # TODO: Importaciones de archivos
 from timer_tool import stop_timer_externally, is_timer_active
 from system_config import (
                             generar_resumen_documento,
                             talk_async, listen, listen_keyword,
+                            wait_for_mic_unlock
                             )
 from security import server
 from handlers import AstroBrain
@@ -222,6 +224,24 @@ def system_status():
     talk_async(mensaje)
 
 
+def sentinel_mode():
+    print("[CENTINELA] Vigilancia del sistema activada")
+
+    last_alert = 0
+    alert_countdown = 300
+
+    while True:
+        cpu = psutil.cpu_percent(interval=1)
+        ram = psutil.virtual_memory().percent
+
+        current_time = time.time()
+
+        if (cpu > 90 or ram > 90) and (current_time - last_alert > alert_countdown):
+            talk_async("Señor, el sistema se está saturando brúscamente. Se requiere revisión inmediata")
+
+        time.sleep(60)
+
+
 def open_work(name):
     ruta_base = r"C:\Users\elpaj\Documents"
     ruta_proyecto = os.path.join(ruta_base, name)
@@ -234,12 +254,17 @@ def open_work(name):
 # !######      BUCLE PRINCIPAL      ######! #
 def run():
     try:
+        # Configuración de saludo inicial
         hora_actual = datetime.now().strftime("%H:%M")
         saludo_inicial = saludo()
         saludo_base = choice(saludos)
         choice_saludo = saludo_base.format(hora_actual=hora_actual)
         talk_async(f"{saludo_inicial}, {choice_saludo}")
+        # Variables de configuración
         rec = ""
+        listen_mic = True
+        # Iniciador de hilos
+        threading.Thread(target=sentinel_mode, daemon=True).start()
 
         # Configurar los handlers de Astro
         astro = AstroBrain(talk_async, listen)
@@ -255,7 +280,8 @@ def run():
 
         while True:
             # ! Esperar palabra clave
-            listen_keyword()
+            if listen_mic:
+                listen_keyword()
 
             time.sleep(0.2)
 
@@ -274,6 +300,15 @@ def run():
                         stop_timer_externally()
                     time.sleep(5)
                     break
+
+                elif "micro" in command or "micrófono" in command:
+                    talk_async("Silenciando micrófono señor.")
+                    listen_mic = False
+
+                    listen_mic = wait_for_mic_unlock()
+
+                    if listen_mic:
+                        talk_async("Micrófono reactivado, señor.")
 
                 astro.process_command(command, **functions)
 
