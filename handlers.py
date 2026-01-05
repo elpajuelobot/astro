@@ -40,9 +40,13 @@ class MusicHandler(CommandHandler):
         return any(k in command for k in keywords)
 
     def execute(self, command, **kwargs):
-        if "pon spotify" in command or "pon música" in command:
-            self.talk("Reproduciendo spotify...")
-            spotify_my_list(self.talk)
+        if any(word in command for word in [
+                                            "pon spotify",
+                                            "pon música",
+                                            "sigue la música",
+                                            "continúa la música"]):
+            self.talk("Reproduciendo...")
+            spotify_play(self.talk)
 
         elif ("pon" in command and "the best" in command or
                 "pon" in command and "spanish version" in command or "spanish versión" in command):
@@ -52,10 +56,6 @@ class MusicHandler(CommandHandler):
             elif "spanish version" in command or "spanish versión" in command:
                 self.talk("Reproduciendo spanish version...")
                 spotify_my_list(self.talk, playlist=2)
-
-        elif "sigue la música" in command or "continúa la música" in command:
-            self.talk("Reproduciendo...")
-            spotify_play(self.talk)
 
         elif "para la música" in command or "música en pausa" in command:
             self.talk("Parando la música...")
@@ -131,11 +131,12 @@ class SystemHandler(CommandHandler):
                 start_kali()
             else:
                 self.talk("Acceso denegado.")
+
         elif "vamos a trabajar" in command:
             self.talk("Estoy preparando el entorno...")
-            app_init(app_name="visual studio")
-            time.sleep(0.5)
             spotify_my_list(self.talk)
+            time.sleep(0.5)
+            app_init(app_name="visual studio")
             time.sleep(0.5)
             app_init(app_name="google")
 

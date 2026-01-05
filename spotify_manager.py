@@ -133,6 +133,9 @@ def spotify_play(talk):
             talk("Spotify aún no estaba listo, \
                 pero debería empezar en un momento.")
             sleep(2)
+            pyautogui.hotkey("win", "7")
+            sleep(2)
+            pyautogui.press('space')
         else:
             talk("Ha ocurrido un error con Spotify señor.")
             print("Error spotify:", e)
