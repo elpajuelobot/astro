@@ -12,6 +12,9 @@ __pycache__/
 # .txt
 *.txt
 
+# .png
+screenshot.png
+
 # Distribution / packaging
 .Python
 build/

@@ -1,0 +1,6 @@
+{
+    "type_prompt": {
+        "code": "Analiza el código que se encuentra en esta imagen y menciona de forma detallada los errores o mejoras que veas en el mismo.",
+        "screen": "Analiza esta imagen y explica de forma breve que ves en ella."
+    }
+}

@@ -20,6 +20,13 @@ import re
 from ddgs import DDGS
 import winsound
 from pynput import keyboard
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage
+from base64 import b64encode
+from mss import mss, tools
+import pygetwindow as gw
+from PIL import Image
+
 
 # ! Semaforo para controlar el audio
 audio_lock = threading.Lock()
@@ -34,8 +41,10 @@ access_key = os.getenv("ACCESS_KEY")
 keyword_path = os.getenv("KEYWORD_PATH")
 model_path = os.getenv("MODEL_PATH")
 model_path_2 = os.getenv("MODEL_PATH_2")
+gemini_key = os.getenv("GEMINI_API_KEY")
 MEMORY_FILE = "astro_memory.json"
-PROMT_FILE = "astro_promt.json"
+PROMT_FILE = "gemini_prompts.json"
+SCREENSHOT_NAME = "screenshot.png"
 
 
 def memory_manager(new_memory=None):
@@ -127,6 +136,15 @@ chat_history = [
             "   Ejemplo: Usuario: '¿Cuándo juega el Madrid?' -> Tú: '[SEARCH: cuándo juega el real madrid próximo partido]'."
             "8. Cuando se te pida código, asegúrate de usar la sintaxis correcta de Python. Los diccionarios usan llaves,"
             "   no comillas simples para los puntos. Escribe el código en multilínea, NUNCA en una sola línea"
+            "9. Si se te pide que analices la pantalla del usuario o que analices código, NO que crees código,"
+            "   sino que lo analices, utilizarás SIEMPRE la etiqueta [GEMINI] al PRINCIPIO del mensaje. Si el"
+            "   usuario pide que analices código, seguido de la etiqueta, SOLAMENTE pondrás la palabra 'CODE'."
+            "   Por el contrario, si te pide que analices la pantalla en general, SOLAMENTE pondrás la palabra 'SCREEN'."
+            "   Ejemplos VÁLIDOS:"
+            "     1. - usuario: 'astro, analiza mi código'"
+            "        - astro: '[GEMINI] CODE'"
+            "     2. - usuario: 'astro, analiza mi pantalla'"
+            "        - astro: '[GEMINI] SCREEN'"
         )
     }
 ]
@@ -150,6 +168,7 @@ def AiBrain(prompt):
         chat_history = [chat_history[0] + chat_history[-10:]]
 
     try:
+        # ! Cargar modelo llama-3.3-70b-versatile
         chat_completion = groq_client.chat.completions.create(
             messages=chat_history,
             model="llama-3.3-70b-versatile",
@@ -158,15 +177,21 @@ def AiBrain(prompt):
             timeout=10
         )
 
+        # ! Generar respuesta
         ai_answer = chat_completion.choices[0].message.content
 
+
+        # TODO: Búsqueda en internet
+        # ! Buscar la etiqueta [SEARCH] en la respuesta generada 
         search_web = re.search(r"\[SEARCH:(.*?)\]", ai_answer)
 
+        # ? Si se encuentra la etiqueta [SEARCH]
         if search_web:
+            # ! Buscar la información faltante
             query = search_web.group(1).strip()
-
             web_results = get_information(query=query)
 
+            # ! Añadir los resultados de la búsqueda al historial
             chat_history.append({
                 "role": "system",
                 "content": f"RESULTADOS DE BÚSQUEDA WEB PARA '{query}':\n{web_results}\n"
@@ -174,6 +199,7 @@ def AiBrain(prompt):
                             f"Sé breve y natural, como si ya lo supieras."
             })
 
+            # ! Volver a cargar el modelo llama-3.3-70b-versatile pero esta vez con el nuevo historial
             chat_completion_2 = groq_client.chat.completions.create(
                 messages=chat_history,
                 model="llama-3.3-70b-versatile",
@@ -182,22 +208,106 @@ def AiBrain(prompt):
                 timeout=10
             )
 
+            # ! Generar respuesta
             ai_answer = chat_completion_2.choices[0].message.content
 
-        memory_pattern = r"\[MEMORY:(.*?)\]"
-        match = re.search(memory_pattern, ai_answer)
 
+        # TODO: Añadir nuevo recuerdo a la memoria
+        memory_pattern = r"\[MEMORY:(.*?)\]"  # ! Etiqueta a buscar [MEMORY]
+        match = re.search(memory_pattern, ai_answer)  # ! Buscar la etiqueta en la respuesta generada
+
+        # ? Si se encuentra la etiqueta [MEMORY]
         if match:
+            # ! Seleccionar el contenido del mensaje, excluyendo la etiqueta
             new_memory_content = match.group(1).strip()
 
+            # ! Añadir el nuevo recuerdo a la memoria
             print(f">>>> DETECTADO NUEVO RECUERDO: {new_memory_content}")
             memory_manager(new_memory=new_memory_content)
 
+            # ! Guardar Respuesta final
             ai_answer = re.sub(memory_pattern, "", ai_answer).strip()
 
-        chat_history.append({"role": "assistant", "content": ai_answer})
 
-        return ai_answer
+        # TODO: Usar Gemini en lugar de Llama
+        memory_pattern = r"\[GEMINI:(.*?)\]"  # ! Etiqueta a buscar [GEMINI]
+        gem = re.search(memory_pattern, ai_answer) # ! Buscar la etiqueta en la respuesta generada
+
+        # ? Si se encuentra la etiqueta [GEMINI]
+        if gem:
+            try:
+                llama_answer_content = gem.group(1).strip()
+                # ! Cargar modelo gemini-2.5-flash
+                gemini = ChatGoogleGenerativeAI(
+                    model="gemini-2.5-flash",  # Modelo gratuito más eficiente
+                    temperature=0.7,
+                    google_api_key=gemini_key
+                )
+
+                # ! Informar del uso de Gemini
+                print("Se ha empezado a utilizar Gemini...")
+
+                # ! Definir Prompt
+                with open(PROMT_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+
+                # ! Segunda parte del prompt
+                gem_prompt = (
+                    "NO te alargues mucho. No utilices símbolos como los * u otros"
+                    "para poner las palabras en negrita o cosas así por el estilo."
+                )
+
+                # ! Verificar petición del usuario
+                if "CODE" in llama_answer_content:
+                    gem_prompt_complete = data['type_prompt']['code'] + gem_prompt
+
+                    # TODO: Hacer captura de pantalla de VScode
+                    # ! Buscar VScode por el título
+                    windows = gw.getWindowsWithTitle('Visual Studio Code')
+                    if windows:
+                        vscode = windows[0] # ! Elejimos la primera opción
+                        # ! Definir coordenadas de VScode
+                        x, y = vscode.left, vscode.top
+                        ancho, alto = vscode.width, vscode.height
+
+                        with mss() as sct:
+                            monitor = {"top": y, "left": x, "width": ancho, "height": alto}
+                            screenshot = sct.grab(monitor)
+                            Image.frombytes("RGB", screenshot.size, screenshot.rgb).save(SCREENSHOT_NAME)
+
+                elif "SCREEN" in llama_answer_content:
+                    gem_prompt_complete = data['type_prompt']['screen'] + gem_prompt
+                else:
+                    talk_async("Lo siento señor, pero estoy teniendo problemas con mi sistema cerebral.")
+                    return
+
+                # ! Abrir captura de la pantalla correspondiente
+                with open(SCREENSHOT_NAME, "rb") as img:
+                    img_bs64 = b64encode(img.read()).decode()
+
+                # ! Crear el prompt para Gemini
+                message = HumanMessage(
+                    content=[
+                        {
+                            "type": "text",
+                            "text": gem_prompt_complete
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": f"data:image/png;base64,{img_bs64}"
+                        }
+                    ]
+                )
+
+                # ! Generar respuesta con Gemini
+                ai_answer = gemini.invoke([message])
+            except Exception as e:
+                talk_async("Lo siento señor, pero gemini no está respondiendo debido a un error")
+                print(f"Error en Gemini: {e}")
+
+
+        chat_history.append({"role": "assistant", "content": ai_answer}) # ! Añadir respuesta final al historial
+        return ai_answer # ! Enviar respuesta final
 
     except Exception as e:
         print(f"Error en Groq: {e}")
