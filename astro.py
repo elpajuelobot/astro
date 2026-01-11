@@ -13,6 +13,7 @@ import unicodedata
 from random import choice
 import traceback
 import threading
+import webbrowser
 
 # TODO: Importaciones de archivos
 from timer_tool import stop_timer_externally, is_timer_active
@@ -108,6 +109,10 @@ def app_init(app_name):
             server(talk_async)
         elif new_app == "visual studio":
             subprocess.run("code", shell=True)
+        elif new_app == "youtube":
+            webbrowser.open_new_tab("https://www.youtube.com/")
+        elif new_app == "amazon":
+            webbrowser.open_new_tab("https://www.amazon.es/")
         else:
             subprocess.Popen(ruta)
         talk_async(f"Abriendo {new_app}")

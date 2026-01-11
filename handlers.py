@@ -20,7 +20,10 @@ from system_config import (
 import pyautogui
 import threading
 import pyperclip
-from webbrowser import open
+from reload_system import (
+                                reload_modules,
+                                restart_system
+                            )
 
 
 class CommandHandler:
@@ -168,7 +171,8 @@ class SystemHandler(CommandHandler):
 
         elif any(word in command for word in [
                                             "abre", "accede",
-                                            "acceso", "inicia"]):
+                                            "acceso", "inicia"
+                                            ]):
             app = (
                     command
                     .replace(" el ", "")
@@ -276,13 +280,6 @@ class SearchHandler(CommandHandler):
                     break
             searchYoutube(query)
 
-        elif "abre" in command and "youtube" in command:
-            open("https://www.youtube.com/")
-
-        elif "abre" in command and "youtube" in command:
-            open("https://www.amazon.es/")
-
-
 
 class TimerHandler(CommandHandler):
     def can_handle(self, command):
@@ -315,6 +312,34 @@ class TimerHandler(CommandHandler):
             else:
                 self.talk("La entrada no ha podido ejecutarse \
                         correctamente. Inténtalo de nuevo.")
+
+
+class UpdateHandler(CommandHandler):
+    def can_handle(self, command):
+        keywords = [
+            "actualízate", "actualizate",
+            "reinicia", "reiníciate",
+            "recarga", "recárgate",
+            "reinicio", "actualiza"
+        ]
+        return any(k in command for k in keywords)
+
+    def execute(self, command, **kwargs):
+        if any(word in command for word in [
+                                                "completo",
+                                                "total",
+                                                "completo",
+                                                "sistema"
+                                            ]):
+            self.talk("Iniciando reinicio completo del sistema, señor...")
+            restart_system()
+        else:
+            self.talk("Recargando los módulos...")
+            if reload_modules():
+                from handlers import AstroBrain
+                self.talk("Actualización completada, señor. Listo para continuar")
+            else:
+                self.talk("Ha habido un problema en la actualización, señor.")
 
 
 class MemoryHandler(CommandHandler):
@@ -459,6 +484,7 @@ class AstroBrain:
             TimerHandler(talk_async, listen),
             MemoryHandler(talk_async, listen),
             CodeAssintantHandler(talk_async, listen),
+            UpdateHandler(talk_async, listen),
             OtherQuestionsHandler(talk_async, listen),
             AIBrainHandler(talk_async, listen)
         ]
