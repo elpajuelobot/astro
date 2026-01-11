@@ -108,10 +108,6 @@ def app_init(app_name):
             server(talk_async)
         elif new_app == "visual studio":
             subprocess.run("code", shell=True)
-        elif new_app == "youtube":
-            pass
-        elif new_app == "amazon":
-            pass
         else:
             subprocess.Popen(ruta)
         talk_async(f"Abriendo {new_app}")

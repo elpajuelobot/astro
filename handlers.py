@@ -20,6 +20,7 @@ from system_config import (
 import pyautogui
 import threading
 import pyperclip
+from webbrowser import open
 
 
 class CommandHandler:
@@ -274,6 +275,13 @@ class SearchHandler(CommandHandler):
                 else:
                     break
             searchYoutube(query)
+
+        elif "abre" in command and "youtube" in command:
+            open("https://www.youtube.com/")
+
+        elif "abre" in command and "youtube" in command:
+            open("https://www.amazon.es/")
+
 
 
 class TimerHandler(CommandHandler):
