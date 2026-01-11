@@ -1,3 +1,9 @@
-import webbrowser
+from pathlib import Path
 
-webbrowser.open_new("https://www.amazon.es/")
+file_path = Path('screenshot.png')
+print(file_path)
+
+if file_path.exists():
+    print("ok")
+else:
+    print("No")

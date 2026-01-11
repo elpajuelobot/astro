@@ -1,0 +1,6 @@
+{
+    "type_prompt": {
+        "code": "LÍMITE ESTRICTO: Responde en máximo 300 palabras. Analiza este código de forma concisa: identifica el propósito principal, posibles errores críticos y una sugerencia de mejora si la hay. ",
+        "screen": "LÍMITE ESTRICTO: Responde en máximo 300 palabras. Describe lo más relevante de esta pantalla de forma directa y útil. "
+    }
+}
