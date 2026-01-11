@@ -26,6 +26,8 @@ from base64 import b64encode
 from mss import mss, tools
 import pygetwindow as gw
 from PIL import Image
+from pynput import mouse
+from pathlib import Path
 
 
 # ! Semaforo para controlar el audio
@@ -45,6 +47,13 @@ gemini_key = os.getenv("GEMINI_API_KEY")
 MEMORY_FILE = "astro_memory.json"
 PROMT_FILE = "gemini_prompts.json"
 SCREENSHOT_NAME = "screenshot.png"
+
+# ! Cargar modelo gemini-2.5-flash para reducir tiempo de espera al analizar código
+gemini = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    temperature=0.7,
+    google_api_key=gemini_key
+)
 
 
 def memory_manager(new_memory=None):
@@ -101,6 +110,57 @@ def get_information(query):
     except Exception as e:
         print(f"Error de búsqueda: {e}")
         return "Error al intentar buscar en internet"
+
+
+def screenshot_screen(type):
+    file_path = Path(SCREENSHOT_NAME)
+
+    if file_path.exists():
+        os.remove(file_path)
+    else:
+        pass
+
+    # TODO: Hacer captura de pantalla de VScode
+    if type == "CODE":
+        # ! Buscar VScode por el título
+        windows = gw.getWindowsWithTitle('Visual Studio Code')
+        if windows:
+            vscode = windows[0] # ! Elejimos la primera opción
+            # ! Definir coordenadas de VScode
+            x, y = vscode.left, vscode.top
+            ancho, alto = vscode.width, vscode.height
+
+            with mss() as sct:
+                monitor = {"top": y, "left": x, "width": ancho, "height": alto}
+                screenshot = sct.grab(monitor)
+                Image.frombytes("RGB", screenshot.size, screenshot.rgb).save(SCREENSHOT_NAME)
+
+    elif type == "SCREEN":
+        controller = mouse.Controller()
+        x, y = controller.position
+        print(f"Posición del mouse: ({x}, {y})")
+
+        with mss() as sct:
+            monitor_encontrado = None
+            indice_monitor = None
+
+            for i, monitor in enumerate(sct.monitors[1:], start=1):
+                if (monitor["left"] <= x < monitor["left"] + monitor["width"] and
+                    monitor["top"] <= y < monitor["top"] + monitor["height"]):
+                    monitor_encontrado = monitor
+                    indice_monitor = i
+                    break
+
+            if monitor_encontrado:
+                print(f"✓ Mouse en Monitor {indice_monitor}: {monitor_encontrado}")
+
+                screenshot = sct.grab(monitor_encontrado)
+                tools.to_png(screenshot.rgb, screenshot.size, output=SCREENSHOT_NAME)
+
+                print(f"✓ Captura guardada: {SCREENSHOT_NAME}")
+                print(f"  Resolución: {screenshot.width}x{screenshot.height}")
+            else:
+                print("✗ No se pudo detectar el monitor")
 
 
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -230,19 +290,13 @@ def AiBrain(prompt):
 
 
         # TODO: Usar Gemini en lugar de Llama
-        memory_pattern = r"\[GEMINI:(.*?)\]"  # ! Etiqueta a buscar [GEMINI]
+        memory_pattern = r"\[GEMINI\]"  # ! Etiqueta a buscar [GEMINI]
         gem = re.search(memory_pattern, ai_answer) # ! Buscar la etiqueta en la respuesta generada
 
         # ? Si se encuentra la etiqueta [GEMINI]
         if gem:
             try:
-                llama_answer_content = gem.group(1).strip()
-                # ! Cargar modelo gemini-2.5-flash
-                gemini = ChatGoogleGenerativeAI(
-                    model="gemini-2.5-flash",  # Modelo gratuito más eficiente
-                    temperature=0.7,
-                    google_api_key=gemini_key
-                )
+                llama_answer_content = ai_answer.replace("[GEMINI]", "").strip()
 
                 # ! Informar del uso de Gemini
                 print("Se ha empezado a utilizar Gemini...")
@@ -253,32 +307,29 @@ def AiBrain(prompt):
 
                 # ! Segunda parte del prompt
                 gem_prompt = (
-                    "NO te alargues mucho. No utilices símbolos como los * u otros"
-                    "para poner las palabras en negrita o cosas así por el estilo."
+                "IMPORTANTE: "
+                "1. Máximo 300 palabras. "
+                "2. NO uses markdown (nada de *, **, #, ```, -, etc.). "
+                "3. NO incluyas bloques de código. "
+                "4. Habla en lenguaje natural, como si estuvieras hablando directamente. "
+                "5. Si necesitas mencionar código, descríbelo con palabras. "
+                "Responde como JARVIS: elegante, breve y directo."
                 )
 
                 # ! Verificar petición del usuario
                 if "CODE" in llama_answer_content:
+                    # ! Crear prompt completo
                     gem_prompt_complete = data['type_prompt']['code'] + gem_prompt
-
-                    # TODO: Hacer captura de pantalla de VScode
-                    # ! Buscar VScode por el título
-                    windows = gw.getWindowsWithTitle('Visual Studio Code')
-                    if windows:
-                        vscode = windows[0] # ! Elejimos la primera opción
-                        # ! Definir coordenadas de VScode
-                        x, y = vscode.left, vscode.top
-                        ancho, alto = vscode.width, vscode.height
-
-                        with mss() as sct:
-                            monitor = {"top": y, "left": x, "width": ancho, "height": alto}
-                            screenshot = sct.grab(monitor)
-                            Image.frombytes("RGB", screenshot.size, screenshot.rgb).save(SCREENSHOT_NAME)
+                    # ! Crear captura de VSCode
+                    screenshot_screen("CODE")
 
                 elif "SCREEN" in llama_answer_content:
+                    # ! Crear prompt completo
                     gem_prompt_complete = data['type_prompt']['screen'] + gem_prompt
+                    # ! Crear captura de la pantalla en donde se encuentra el mouse
+                    screenshot_screen("SCREEN")
                 else:
-                    talk_async("Lo siento señor, pero estoy teniendo problemas con mi sistema cerebral.")
+                    talk_async("Lo siento señor, pero estoy teniendo problemas con mi sistema neuronal.")
                     return
 
                 # ! Abrir captura de la pantalla correspondiente
@@ -300,10 +351,36 @@ def AiBrain(prompt):
                 )
 
                 # ! Generar respuesta con Gemini
-                ai_answer = gemini.invoke([message])
+                response = gemini.invoke([message])
+                ai_answer = response.content
+                # ! Eliminar captura
+                try:
+                    os.remove(SCREENSHOT_NAME)
+                except FileNotFoundError:
+                    pass
+
+                # ! Si la respuesta es demasiado larga, resumir con llama
+                if len(ai_answer) > 1900:
+                    print(f"[BRAIN] Respuesta de Gemini demasiado larga ({len(ai_answer)} chars). Resumiendo...")
+                    # ! Prompt para generar el nuevo resumen
+                    resumen_prompt = (
+                        f"Resume lo siguiente en un MÁXIMO de 3 frases cortas y directas, "
+                        f"manteniendo el tono J.A.R.V.I.S./Astro: {ai_answer}"
+                    )
+
+                    # ! Volver a cargar llama con su nuevo prompt para generar el resumen
+                    generate_gem_resumen = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": resumen_prompt}],
+                        temperature=0.5,
+                        max_tokens=150
+                    )
+
+                    ai_answer = generate_gem_resumen.choices[0].message.content
+                    print(f"[RESUMEN] {ai_answer}")
             except Exception as e:
-                talk_async("Lo siento señor, pero gemini no está respondiendo debido a un error")
                 print(f"Error en Gemini: {e}")
+                return "Lo siento señor, pero gemini no está respondiendo debido a un error"
 
 
         chat_history.append({"role": "assistant", "content": ai_answer}) # ! Añadir respuesta final al historial

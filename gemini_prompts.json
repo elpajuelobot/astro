@@ -1,6 +1,6 @@
 {
     "type_prompt": {
-        "code": "Analiza el código que se encuentra en esta imagen y menciona de forma detallada los errores o mejoras que veas en el mismo.",
-        "screen": "Analiza esta imagen y explica de forma breve que ves en ella."
+        "code": "LÍMITE ESTRICTO: Responde en máximo 300 palabras. Analiza este código de forma concisa: identifica el propósito principal, posibles errores críticos y una sugerencia de mejora si la hay. ",
+        "screen": "LÍMITE ESTRICTO: Responde en máximo 300 palabras. Describe lo más relevante de esta pantalla de forma directa y útil. "
     }
 }
