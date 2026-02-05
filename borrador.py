@@ -1,9 +1,5 @@
-from pathlib import Path
+from spotify_manager import Spotify, spoti_info
+from system_config import talk_async
 
-file_path = Path('screenshot.png')
-print(file_path)
-
-if file_path.exists():
-    print("ok")
-else:
-    print("No")
+actual_device_id = spoti_info(talk_async, "device_id", "device_name")
+print(actual_device_id)

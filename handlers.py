@@ -2,7 +2,8 @@ from spotify_manager import (
                                 spotify_my_list, spotify_play, spotify_pause,
                                 spotify_next, spotify_previous,
                                 spotify_search_song,
-                                spotify_get_volume, spotify_set_volume
+                                spotify_get_volume, spotify_set_volume,
+                                transfer_music, spoti_info
                             )
 from security import security
 import time
@@ -24,6 +25,8 @@ from reload_system import (
                                 reload_modules,
                                 restart_system
                             )
+from dotenv import load_dotenv
+import os
 
 
 class CommandHandler:
@@ -40,10 +43,17 @@ class CommandHandler:
 
 class MusicHandler(CommandHandler):
     def can_handle(self, command):
-        keywords = ["spotify", "música", "canción", "voz", "volumen", "pon"]
+        keywords = [
+            "spotify", "música", "canción",
+            "voz", "volumen", "pon", "cambia",
+            "escuchando", "sonando"
+            ]
         return any(k in command for k in keywords)
 
     def execute(self, command, **kwargs):
+        pc_name = os.getenv("PC_NAME")
+        echo_name = os.getenv("ECHO_NAME")
+
         if any(word in command for word in [
                                             "pon spotify",
                                             "pon música",
@@ -109,6 +119,22 @@ class MusicHandler(CommandHandler):
             else:
                 original = spotify_get_volume(self.talk)
                 spotify_set_volume(original - 10, self.talk)
+
+        elif "cambia" in command:
+            actual_device_name = spoti_info(self.talk, "device_name")
+
+            if actual_device_name:
+                if "exterior" in command and actual_device_name['device_name'].lower() != echo_name.lower():
+                    transfer_music(self.talk, echo_name)
+                else:
+                    transfer_music(self.talk, pc_name)
+            else:
+                self.talk("No he podido transferir Spotify, señor.")
+
+        elif "escuchando" in command or "sonando" in command:
+            actual_song = spoti_info(self.talk, "music_info")
+
+            self.talk(actual_song['music_info'])
 
 
 class SystemHandler(CommandHandler):
@@ -202,7 +228,7 @@ class SearchHandler(CommandHandler):
         if any(word in command for word in [
                                 "buscar", "búscame",
                                 "investiga", "averigua",
-                                "encuentra", "qué es",
+                                "encuentra", "qué es ",
                                 "quién es", "qué significa"]):
 
             wikipedia.set_lang("es")
@@ -214,7 +240,7 @@ class SearchHandler(CommandHandler):
                     .replace("investiga", "")
                     .replace("averigua", "")
                     .replace("encuentra", "")
-                    .replace("qué es", "")
+                    .replace("qué es ", "")
                     .replace("quién es", "")
                     .replace("qué significa", "")
                     .replace("en la wikipedia", "")

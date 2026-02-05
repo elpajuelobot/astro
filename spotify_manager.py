@@ -215,3 +215,59 @@ def spotify_set_volume(volume, talk):
         talk("No se ha podido abrir spotify")
         return
     sp.volume(volume)
+
+
+def transfer_music(talk, device_name):
+    sp = Spotify(talk)
+    if sp is None:
+        talk("No se ha podido abrir spotify")
+        return
+
+    devices = sp.devices()
+    device_id = ""
+
+    for device in devices['devices']:
+        if device['name'].lower() == device_name.lower():
+            device_id = device['id']
+            break
+
+    if device_id:
+        sp.transfer_playback(device_id, force_play=True)
+    else:
+        talk("Dispositivo no encontrado")
+
+
+def spoti_info(talk, *args):
+    sp = Spotify(talk)
+    if sp is None:
+        talk("No se ha podido abrir spotify")
+        return
+
+    playback = sp.current_playback()
+
+    if not args:
+        return None
+
+    if playback and playback['is_playing']:
+        device = playback['device']
+        track = playback['item']
+        choose_info = dict()
+        information = {
+            "device_name": device['name'],
+            "device_type": device['type'],
+            "device_id": device['id'],
+            "device_volume": device['volume_percent'],
+            "music_info": f"Está escuchando {track['name']}, de {track['artists'][0]['name']}"
+        }
+
+        for i in args:
+            if i in information:
+                choose_info[i] = information[i]
+            else:
+                choose_info[i] = "None"
+
+        return choose_info
+
+    else:
+        talk("No hay ningún dispositivo activo ahora mismo señor.")
+        return None
