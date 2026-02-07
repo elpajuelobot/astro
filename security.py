@@ -5,7 +5,6 @@ import os
 import subprocess
 import flet as ft
 import winsound
-import urllib.parse
 
 load_dotenv()
 

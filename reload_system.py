@@ -1,9 +1,9 @@
-import os
 import sys
 import subprocess
 import importlib
 from system_config import talk_async
 import time
+
 
 def reload_modules():
     modules_reload = [

@@ -28,7 +28,6 @@ from PIL import Image
 from pynput import mouse
 from pathlib import Path
 
-
 # ! Semaforo para controlar el audio
 audio_lock = threading.Lock()
 stop_audio_event = threading.Event()
@@ -43,15 +42,14 @@ keyword_path = os.getenv("KEYWORD_PATH")
 model_path = os.getenv("MODEL_PATH")
 model_path_2 = os.getenv("MODEL_PATH_2")
 gemini_key = os.getenv("GEMINI_API_KEY")
-MEMORY_FILE = "astro_memory.json"
-PROMT_FILE = "gemini_prompts.json"
+MEMORY_FILE = r"json files//astro_memory.json"
+PROMT_FILE_GEMINI = r"json files//system_prompts//gemini_prompts.json"
+PROMT_FILE_LLAMA = r"json files//system_prompts//llama_prompts.json"
 SCREENSHOT_NAME = "screenshot.png"
 
 # ! Cargar gemini-2.5-flash para reducir tiempo de espera al analizar código
 gemini = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    temperature=0.7,
-    google_api_key=gemini_key
+    model="gemini-2.5-flash", temperature=0.7, google_api_key=gemini_key
 )
 
 
@@ -101,8 +99,8 @@ def get_information(query):
         if results:
             summary = ""
             for res in results:
-                summary += (f"- Título: {res['title']}\n \
-                            Resumen: {res['body']}\n")
+                summary += f"- Título: {res['title']}\n \
+                            Resumen: {res['body']}\n"
                 print(summary)
             return summary
         return "No se han encontrado datos en internet"
@@ -122,7 +120,7 @@ def screenshot_screen(type):
     # TODO: Hacer captura de pantalla de VScode
     if type == "CODE":
         # ! Buscar VScode por el título
-        windows = gw.getWindowsWithTitle('Visual Studio Code')
+        windows = gw.getWindowsWithTitle("Visual Studio Code")
         if windows:
             vscode = windows[0]
             # ! Definir coordenadas de VScode
@@ -132,7 +130,9 @@ def screenshot_screen(type):
             with mss() as sct:
                 monitor = {"top": y, "left": x, "width": ancho, "height": alto}
                 screenshot = sct.grab(monitor)
-                Image.frombytes("RGB", screenshot.size, screenshot.rgb).save(SCREENSHOT_NAME)
+                Image.frombytes("RGB", screenshot.size, screenshot.rgb).save(
+                    SCREENSHOT_NAME
+                )
 
     elif type == "SCREEN":
         controller = mouse.Controller()
@@ -145,9 +145,9 @@ def screenshot_screen(type):
 
             for i, monitor in enumerate(sct.monitors[1:], start=1):
                 if (
-                        monitor["left"] <= x < monitor["left"] + monitor["width"]
-                        and
-                        monitor["top"] <= y < monitor["top"] + monitor["height"]):
+                    monitor["left"] <= x < monitor["left"] + monitor["width"]
+                    and monitor["top"] <= y < monitor["top"] + monitor["height"]
+                ):
                     monitor_encontrado = monitor
                     indice_monitor = i
                     break
@@ -166,47 +166,25 @@ def screenshot_screen(type):
 
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+
+def load_llama_prompt():
+    if os.path.exists(PROMT_FILE_LLAMA):
+        with open(PROMT_FILE_LLAMA, "r", encoding="utf-8") as f:
+            try:
+                data = json.load(f)
+                return " ".join(data.get("llama_system_prompt", []))
+            except (json.JSONDecodeError, KeyError):
+                print("[Error] No se ha podido leer el system-prompt de llama.")
+    return "Eres astro, un asistente cortés."
+
+
+system_prompt = load_llama_prompt()
+
 # Historial de conversación
 chat_history = [
     {
         "role": "system",
-        "content": (
-            "Eres Astro, una inteligencia artificial avanzada al servicio del Señor Hugo. "
-            "Tu personalidad está inspirada en J.A.R.V.I.S. de Iron Man: eres extremadamente cortés, "
-            "eficiente, leal y tienes un tono formal pero sofisticado. "
-            "INSTRUCCIONES CLAVE:"
-            "1. Dirígete siempre al usuario como 'Señor' o 'Señor Hugo'."
-            "2. Mantén las respuestas breves y directas (máximo 2 frases) para el sintetizador de voz."
-            "3. No uses listas, markdown, emojis ni jerga coloquial (nada de 'quillo' salvo que sea sarcasmo)."
-            "4. Si te preguntan cómo estás, responde con elegancia (ej: 'Sistemas al 100%, Señor')."
-            "5. Resides en Punta Umbría, tenlo en cuenta para el contexto."
-            "6. GESTIÓN DE MEMORIA (ESTRICTO):"
-            "   - SOLO debes guardar un recuerdo si el usuario afirma explícitamente un HECHO NUEVO, PERMANENTE y RELEVANTE sobre sí mismo."
-            "   - Ejemplos VÁLIDOS para guardar: 'Me llamo Hugo', 'Soy alérgico a las nueces', 'Mi perro se llama Thor', 'Me voy a Madrid el viernes'."
-            "   - Formato obligatorio: [MEMORY: El usuario tiene un perro llamado Thor]."
-            "   - PROHIBIDO GUARDAR (IMPORTANTE):"
-            "       * NO guardes interacciones ('El usuario preguntó la hora')."
-            "       * NO guardes lo que NO pasó ('No se mencionó música')."
-            "       * NO guardes comandos simples ('El usuario pidió abrir Spotify')."
-            "       * NO guardes estados temporales ('El usuario tiene hambre')."
-            "   - Si no hay un dato nuevo y permanente, NO escribas la etiqueta [MEMORY]."
-            "7. NO tienes conocimiento en tiempo real (noticias, clima, fechas de estrenos futuros). "
-            "   Si el usuario pregunta algo que requiere datos ACTUALIZADOS o de INTERNET, "
-            "   NO inventes. En su lugar, genera SOLAMENTE esta etiqueta: "
-            "   [SEARCH: consulta de búsqueda]."
-            "   Ejemplo: Usuario: '¿Cuándo juega el Madrid?' -> Tú: '[SEARCH: cuándo juega el real madrid próximo partido]'."
-            "8. Cuando se te pida código, asegúrate de usar la sintaxis correcta de Python. Los diccionarios usan llaves,"
-            "   no comillas simples para los puntos. Escribe el código en multilínea, NUNCA en una sola línea"
-            "9. Si se te pide que analices la pantalla del usuario o que analices código, NO que crees código,"
-            "   sino que lo analices, utilizarás SIEMPRE la etiqueta [GEMINI] al PRINCIPIO del mensaje. Si el"
-            "   usuario pide que analices código, seguido de la etiqueta, SOLAMENTE pondrás la palabra 'CODE'."
-            "   Por el contrario, si te pide que analices la pantalla en general, SOLAMENTE pondrás la palabra 'SCREEN'."
-            "   Ejemplos VÁLIDOS:"
-            "     1. - usuario: 'astro, analiza mi código'"
-            "        - astro: '[GEMINI] CODE'"
-            "     2. - usuario: 'astro, analiza mi pantalla'"
-            "        - astro: '[GEMINI] SCREEN'"
-        )
+        "content": system_prompt,
     }
 ]
 
@@ -221,12 +199,12 @@ def AiBrain(prompt):
     contexto_sistema = (
         f" [Contexto del sistema: Son las {hour} en Punta Umbría. Usuario: Hugo. "
         f"DATOS QUE RECUERDAS SOBRE EL USUARIO: {long_memory}]"
-        )
+    )
 
     chat_history.append({"role": "user", "content": prompt + contexto_sistema})
 
     if len(chat_history) > 11:
-        chat_history = [chat_history[0] + chat_history[-10:]]
+        chat_history = [chat_history[0]] + chat_history[-10:]
 
     try:
         # ! Cargar modelo llama-3.3-70b-versatile
@@ -235,7 +213,7 @@ def AiBrain(prompt):
             model="llama-3.3-70b-versatile",
             temperature=0.6,
             max_tokens=200,
-            timeout=10
+            timeout=10,
         )
 
         # ! Generar respuesta
@@ -252,29 +230,33 @@ def AiBrain(prompt):
             web_results = get_information(query=query)
 
             # ! Añadir los resultados de la búsqueda al historial
-            chat_history.append({
-                "role": "system",
-                "content": f"RESULTADOS DE BÚSQUEDA WEB PARA '{query}':\n{web_results}\n"
-                            f"Instrucción: Usa esta información para responder a la pregunta original del usuario. "
-                            f"Sé breve y natural, como si ya lo supieras."
-            })
+            chat_history.append(
+                {
+                    "role": "system",
+                    "content": f"RESULTADOS DE BÚSQUEDA WEB PARA '{query}':\n{web_results}\n"
+                    "Instrucción: Usa esta información para responder "
+                    "a la pregunta original del usuario. "
+                    "Sé breve y natural, como si ya lo supieras.",
+                }
+            )
 
-            # ! Volver a cargar el modelo llama-3.3-70b-versatile pero esta vez con el nuevo historial
+            # ! Volver a cargar llama-3.3-70b-versatile pero esta vez con el nuevo historial
             chat_completion_2 = groq_client.chat.completions.create(
                 messages=chat_history,
                 model="llama-3.3-70b-versatile",
                 temperature=0.6,
                 max_tokens=200,
-                timeout=10
+                timeout=10,
             )
 
             # ! Generar respuesta
             ai_answer = chat_completion_2.choices[0].message.content
 
-
         # TODO: Añadir nuevo recuerdo a la memoria
         memory_pattern = r"\[MEMORY:(.*?)\]"  # ! Etiqueta a buscar [MEMORY]
-        match = re.search(memory_pattern, ai_answer)  # ! Buscar la etiqueta en la respuesta generada
+        match = re.search(
+            memory_pattern, ai_answer
+        )  # ! Buscar la etiqueta en la respuesta generada
 
         # ? Si se encuentra la etiqueta [MEMORY]
         if match:
@@ -288,10 +270,11 @@ def AiBrain(prompt):
             # ! Guardar Respuesta final
             ai_answer = re.sub(memory_pattern, "", ai_answer).strip()
 
-
         # TODO: Usar Gemini en lugar de Llama
         memory_pattern = r"\[GEMINI\]"  # ! Etiqueta a buscar [GEMINI]
-        gem = re.search(memory_pattern, ai_answer) # ! Buscar la etiqueta en la respuesta generada
+        gem = re.search(
+            memory_pattern, ai_answer
+        )  # ! Buscar la etiqueta en la respuesta generada
 
         # ? Si se encuentra la etiqueta [GEMINI]
         if gem:
@@ -302,34 +285,36 @@ def AiBrain(prompt):
                 print("Se ha empezado a utilizar Gemini...")
 
                 # ! Definir Prompt
-                with open(PROMT_FILE, "r", encoding="utf-8") as f:
+                with open(PROMT_FILE_GEMINI, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
                 # ! Segunda parte del prompt
                 gem_prompt = (
-                "IMPORTANTE: "
-                "1. Máximo 300 palabras. "
-                "2. NO uses markdown (nada de *, **, #, ```, -, etc.). "
-                "3. NO incluyas bloques de código. "
-                "4. Habla en lenguaje natural, como si estuvieras hablando directamente. "
-                "5. Si necesitas mencionar código, descríbelo con palabras. "
-                "Responde como JARVIS: elegante, breve y directo."
+                    "IMPORTANTE: "
+                    "1. Máximo 300 palabras. "
+                    "2. NO uses markdown (nada de *, **, #, ```, -, etc.). "
+                    "3. NO incluyas bloques de código. "
+                    "4. Habla en lenguaje natural, como si estuvieras hablando directamente. "
+                    "5. Si necesitas mencionar código, descríbelo con palabras. "
+                    "Responde como JARVIS: elegante, breve y directo."
                 )
 
                 # ! Verificar petición del usuario
                 if "CODE" in llama_answer_content:
                     # ! Crear prompt completo
-                    gem_prompt_complete = data['type_prompt']['code'] + gem_prompt
+                    gem_prompt_complete = data["type_prompt"]["code"] + gem_prompt
                     # ! Crear captura de VSCode
                     screenshot_screen("CODE")
 
                 elif "SCREEN" in llama_answer_content:
                     # ! Crear prompt completo
-                    gem_prompt_complete = data['type_prompt']['screen'] + gem_prompt
+                    gem_prompt_complete = data["type_prompt"]["screen"] + gem_prompt
                     # ! Crear captura de la pantalla en donde se encuentra el mouse
                     screenshot_screen("SCREEN")
                 else:
-                    talk_async("Lo siento señor, pero estoy teniendo problemas con mi sistema neuronal.")
+                    talk_async(
+                        "Lo siento señor, pero estoy teniendo problemas con mi sistema neuronal."
+                    )
                     return
 
                 # ! Abrir captura de la pantalla correspondiente
@@ -339,14 +324,11 @@ def AiBrain(prompt):
                 # ! Crear el prompt para Gemini
                 message = HumanMessage(
                     content=[
-                        {
-                            "type": "text",
-                            "text": gem_prompt_complete
-                        },
+                        {"type": "text", "text": gem_prompt_complete},
                         {
                             "type": "image_url",
-                            "image_url": f"data:image/png;base64,{img_bs64}"
-                        }
+                            "image_url": f"data:image/png;base64,{img_bs64}",
+                        },
                     ]
                 )
 
@@ -361,7 +343,10 @@ def AiBrain(prompt):
 
                 # ! Si la respuesta es demasiado larga, resumir con llama
                 if len(ai_answer) > 1900:
-                    print(f"[BRAIN] Respuesta de Gemini demasiado larga ({len(ai_answer)} chars). Resumiendo...")
+                    print(
+                        "[BRAIN] Respuesta de Gemini"
+                        f"demasiado larga ({len(ai_answer)} chars). Resumiendo..."
+                    )
                     # ! Prompt para generar el nuevo resumen
                     resumen_prompt = (
                         f"Resume lo siguiente en un MÁXIMO de 3 frases cortas y directas, "
@@ -373,7 +358,7 @@ def AiBrain(prompt):
                         model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": resumen_prompt}],
                         temperature=0.5,
-                        max_tokens=150
+                        max_tokens=150,
                     )
 
                     ai_answer = generate_gem_resumen.choices[0].message.content
@@ -382,9 +367,10 @@ def AiBrain(prompt):
                 print(f"Error en Gemini: {e}")
                 return "Lo siento señor, pero gemini no está respondiendo debido a un error"
 
-
-        chat_history.append({"role": "assistant", "content": ai_answer}) # ! Añadir respuesta final al historial
-        return ai_answer # ! Enviar respuesta final
+        chat_history.append(
+            {"role": "assistant", "content": ai_answer}
+        )  # ! Añadir respuesta final al historial
+        return ai_answer  # ! Enviar respuesta final
 
     except Exception as e:
         print(f"Error en Groq: {e}")
@@ -393,26 +379,27 @@ def AiBrain(prompt):
 
 def generar_resumen_documento(texto_largo):
     try:
-        texto_recortado = texto_largo[:25000] 
+        texto_recortado = texto_largo[:25000]
 
         prompt = (
             "Eres un asistente de investigación experto. "
             "Resume el siguiente texto de manera estructurada, destacando los puntos clave "
-            "y conclusiones importantes. El resumen debe ser profesional y en español:\n\n" 
+            "y conclusiones importantes. El resumen debe ser profesional y en español:\n\n"
             f"{texto_recortado}"
         )
 
         chat_completion = groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.5, # Más preciso, menos creativo
-            max_tokens=1024, # Dejamos que escriba bastante
+            temperature=0.5,  # Más preciso, menos creativo
+            max_tokens=1024,  # Dejamos que escriba bastante
         )
 
         return chat_completion.choices[0].message.content
     except Exception as e:
         print(f"Error al resumir: {e}")
         return "No pude generar el informe, Señor."
+
 
 name = "astro"
 listener = sr.Recognizer()
@@ -433,18 +420,23 @@ saludos_activacion = [
     "¿Qué hay que hacer?",
     "Diga, jefe",
     "Ya estoy aquí",
-    "¿Otra misión, señor?"
+    "¿Otra misión, señor?",
 ]
 
 
-orca = pvorca.create(
-    access_key=access_key,
-    model_path=model_path_2
-    )
+orca = pvorca.create(access_key=access_key, model_path=model_path_2)
 
 
-def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
-                eco=False, reverb=False, robot=False, suavizar=True):
+def hablar_orca(
+    texto,
+    tono=1.55,
+    velocidad=1.0,
+    volumen=1.0,
+    eco=False,
+    reverb=False,
+    robot=False,
+    suavizar=True,
+):
     with audio_lock:
         stop_audio_event.clear()
         try:
@@ -459,24 +451,37 @@ def hablar_orca(texto, tono=1.55, velocidad=1.0, volumen=1.0,
             audio_samples, sample_rate = result
 
             if isinstance(audio_samples, list):
-                audio_bytes = struct.pack('<' + ('h' * len(audio_samples)), *audio_samples)
+                audio_bytes = struct.pack(
+                    "<" + ("h" * len(audio_samples)), *audio_samples
+                )
             else:
                 audio_bytes = audio_samples
 
             try:
-                sample_rate = int(sample_rate[0]) if isinstance(sample_rate, (list, tuple)) else int(sample_rate)
+                sample_rate = (
+                    int(sample_rate[0])
+                    if isinstance(sample_rate, (list, tuple))
+                    else int(sample_rate)
+                )
             except Exception:
                 sample_rate = 16000
 
             # Intentar mono, si falla, estéreo
             try:
-                audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=1)
+                audio = AudioSegment(
+                    data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=1
+                )
             except Exception:
-                audio = AudioSegment(data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=2)
+                audio = AudioSegment(
+                    data=audio_bytes, sample_width=2, frame_rate=sample_rate, channels=2
+                )
 
             # ajustes de voz
             if tono != 1.0:
-                audio = audio._spawn(audio.raw_data, overrides={"frame_rate": int(audio.frame_rate * tono)}).set_frame_rate(sample_rate)
+                audio = audio._spawn(
+                    audio.raw_data,
+                    overrides={"frame_rate": int(audio.frame_rate * tono)},
+                ).set_frame_rate(sample_rate)
             if velocidad != 1.0:
                 audio = audio.speedup(playback_speed=velocidad)
             if volumen != 0.0:
@@ -499,7 +504,7 @@ def talk(text):
 
 
 def talk_async(text):
-    #if threading.active_count() < 2:
+    # if threading.active_count() < 2:
     text = clear_text_to_orca(text=text)
     threading.Thread(target=talk, args=(text,), daemon=True).start()
 
@@ -510,15 +515,21 @@ def word_to_number(text):
 
     for p in palabras:
         try:
-            out.append(str(w2n.word_to_num(GoogleTranslator(source="es", target="en").translate(p))))
-        except:
+            out.append(
+                str(
+                    w2n.word_to_num(
+                        GoogleTranslator(source="es", target="en").translate(p)
+                    )
+                )
+            )
+        except Exception:
             out.append(p)
 
     return " ".join(out)
 
 
 def clear_text_to_orca(text):
-    text = ''.join(c for c in text if unicodedata.category(c)[0] != "C")
+    text = "".join(c for c in text if unicodedata.category(c)[0] != "C")
 
     text = text.replace("\ufeff", "").replace("\u200b", "")
 
@@ -526,7 +537,7 @@ def clear_text_to_orca(text):
 
 
 def listen():
-    #if audio_lock.locked():
+    # if audio_lock.locked():
     #    time.sleep(0.2)
 
     rec = ""
@@ -540,14 +551,14 @@ def listen():
             print("\n\nEscuchando...\n\n")
             voice = listener.listen(source, timeout=5, phrase_time_limit=12)
 
-        rec = listener.recognize_google(voice, language='es-ES').lower()
+        rec = listener.recognize_google(voice, language="es-ES").lower()
         try:
             rec = word_to_number(rec)
-        except:
+        except Exception:
             pass
         print(rec)
 
-    except sr.WaitTimeoutError as e:
+    except sr.WaitTimeoutError:
         pass
     except sr.UnknownValueError:
         pass
@@ -572,17 +583,15 @@ def listen_keyword():
 
     try:
         porcupine = pvporcupine.create(
-            access_key=access_key,
-            keyword_paths=[keyword_path],
-            model_path=model_path
-            )  # puedes cambiar a otro hotword
+            access_key=access_key, keyword_paths=[keyword_path], model_path=model_path
+        )  # puedes cambiar a otro hotword
         pa = pyaudio.PyAudio()
         stream = pa.open(
             rate=porcupine.sample_rate,
             channels=1,
             format=pyaudio.paInt16,
             input=True,
-            frames_per_buffer=porcupine.frame_length
+            frames_per_buffer=porcupine.frame_length,
         )
 
         print("\n\nEsperando palabra clave\n\n")
@@ -591,7 +600,9 @@ def listen_keyword():
             keyword_detected = False
             while not keyword_detected:
                 try:
-                    pcm = stream.read(porcupine.frame_length, exception_on_overflow=False)
+                    pcm = stream.read(
+                        porcupine.frame_length, exception_on_overflow=False
+                    )
                     pcm_unpacked = struct.unpack_from("h" * porcupine.frame_length, pcm)
                     keyword_index = porcupine.process(pcm_unpacked)
 
@@ -629,10 +640,7 @@ def wait_for_mic_unlock():
         print("Reactivando micrófono...")
         mic_unlock_event.set()
 
-    hotkeys = {
-        '<ctrl>+<shift>+m': on_activate,
-        '<ctrl>+<shift>+M': on_activate
-    }
+    hotkeys = {"<ctrl>+<shift>+m": on_activate, "<ctrl>+<shift>+M": on_activate}
 
     with keyboard.GlobalHotKeys(hotkeys=hotkeys):
         mic_unlock_event.wait()

@@ -3,8 +3,6 @@ from spotipy.oauth2 import SpotifyOAuth
 from spotipy.exceptions import SpotifyException
 from dotenv import load_dotenv
 import os
-import json
-import subprocess
 from time import sleep
 import pyautogui
 import psutil
@@ -43,27 +41,25 @@ def wait_for_device(sp, timeout=10):
 
 def Spotify(talk):
     try:
-        with open("rutas_apps.json", "r", encoding="utf-8") as f:
-            rutas = json.load(f)
-            if not is_app_open("Spotify"):
-                talk("Abriendo Spotify señor")
-                pyautogui.hotkey("win", "7")
-                sleep(2)
-                pyautogui.press('space')
+        if not is_app_open("Spotify"):
+            talk("Abriendo Spotify señor")
+            pyautogui.hotkey("win", "7")
+            sleep(2)
+            pyautogui.press('space')
 
-            sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-                client_id=client_id,
-                client_secret=client_secret,
-                redirect_uri=redirect_uri,
-                scope="user-modify-playback-state user-read-playback-state"
-            ))
+        sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=redirect_uri,
+            scope="user-modify-playback-state user-read-playback-state"
+        ))
 
-            if not wait_for_device(sp, timeout=10):
-                talk("No se ha detectado todavía ha spotify señor, \
-                    vuelve a intentarlo por favor")
-                return None
+        if not wait_for_device(sp, timeout=10):
+            talk("No se ha detectado todavía ha spotify señor, \
+                vuelve a intentarlo por favor")
+            return None
 
-            return sp
+        return sp
 
     except Exception as e:
         print(f"\n\nError Spottitiitiititi: {e}\n\n")

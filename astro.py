@@ -18,19 +18,22 @@ import webbrowser
 # TODO: Importaciones de archivos
 from timer_tool import stop_timer_externally, is_timer_active
 from system_config import (
-                            generar_resumen_documento,
-                            talk_async, listen, listen_keyword,
-                            wait_for_mic_unlock, init_micro
-                            )
+    generar_resumen_documento,
+    talk_async,
+    listen,
+    listen_keyword,
+    wait_for_mic_unlock,
+    init_micro,
+)
 from security import server
 from handlers import AstroBrain
-
 
 # Importar variables
 load_dotenv()
 VBOXMANAGE = os.getenv("VBOXMANAGE")
 VM_NAME = os.getenv("VM_NAME")
-api_key = os.getenv("WEATHER_KEY")
+API_KEY = os.getenv("WEATHER_KEY")
+W_URL = os.getenv("WEATHER_URL")
 
 # Variables de configuración
 stop = False
@@ -38,7 +41,7 @@ stop = False
 
 # Tiempo atmosférico
 def weather(ciudad):
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad}&appid={api_key}&units=metric&lang=es"
+    url = f"{W_URL}?q={ciudad}&appid={API_KEY}&units=metric&lang=es"
 
     try:
         respuesta = requests.get(url)
@@ -46,9 +49,9 @@ def weather(ciudad):
         datos_clima = respuesta.json()
 
         if respuesta.status_code == 200:
-            temperatura = datos_clima['main']['temp']
-            descripcion = datos_clima['weather'][0]['description']
-            humedad = datos_clima['main']['humidity']
+            temperatura = datos_clima["main"]["temp"]
+            descripcion = datos_clima["weather"][0]["description"]
+            humedad = datos_clima["main"]["humidity"]
             return f"El clima en {ciudad} es {descripcion}, con una \
                 temperatura de {temperatura}°C, y una humedad del {humedad}%."
 
@@ -67,9 +70,8 @@ def searchYoutube(query):
 
 def app_init(app_name):
     def is_app_running():
-        for proc in psutil.process_iter(['name']):
-            if (proc.info['name'] and app_name.lower()
-                    in proc.info['name'].lower()):
+        for proc in psutil.process_iter(["name"]):
+            if proc.info["name"] and app_name.lower() in proc.info["name"].lower():
 
                 talk_async("Ya está abierto")
                 return True
@@ -79,19 +81,18 @@ def app_init(app_name):
         return
 
     try:
-        with open("rutas_apps.json", "r", encoding="utf-8") as f:
+        with open("json files//rutas_apps.json", "r", encoding="utf-8") as f:
             rutas = json.load(f)
     except Exception as e:
         talk_async("No he podido cargar el archivo de las aplicaciones.")
         print("json:", e)
         return
 
-    name_app = unicodedata.normalize('NFD', app_name)
-    name_app_good = ''.join((c for c in name_app
-                            if unicodedata.category(c) != 'Mn'))
+    name_app = unicodedata.normalize("NFD", app_name)
+    name_app_good = "".join((c for c in name_app if unicodedata.category(c) != "Mn"))
     condience = difflib.get_close_matches(
-                                        name_app_good.lower(),
-                                        rutas.keys(), n=1, cutoff=0.4)
+        name_app_good.lower(), rutas.keys(), n=1, cutoff=0.4
+    )
 
     if condience:
         new_app = condience[0]
@@ -122,10 +123,7 @@ def app_init(app_name):
 
 def start_kali():
     try:
-        subprocess.run(
-            [VBOXMANAGE, "startvm", VM_NAME, "--type", "gui"],
-            check=True
-        )
+        subprocess.run([VBOXMANAGE, "startvm", VM_NAME, "--type", "gui"], check=True)
     except subprocess.CalledProcessError:
         talk_async("No se ha podido iniciar Kali Linux señor. \
                     Le muestro el error en pantalla.")
@@ -168,7 +166,7 @@ saludos = [
     "Operativo, Señor. La configuración es óptima y estoy listo \
         para sus comandos. Son las {hora_actual}",
     "Señor Hugo. Bienvenido. La hora es {hora_actual}. \
-        ¿En qué puedo asistirle hoy?"
+        ¿En qué puedo asistirle hoy?",
 ]
 
 
@@ -176,7 +174,7 @@ def saludo(hora_actual=None):
     franjas = {
         "buenos días": (6, 12),  # 6 AM a 12 PM
         "buenas tardes": (12, 20),  # 12 PM a 8 PM
-        "buenas noches": (20, 6)  # 8 PM a 6 AM
+        "buenas noches": (20, 6),  # 8 PM a 6 AM
     }
 
     if hora_actual is None:
@@ -185,9 +183,9 @@ def saludo(hora_actual=None):
     # Buscar la franja horaria adecuada
     for saludo, (inicio, fin) in franjas.items():
         # Verificar si la hora actual está dentro del rango de la franja
-        if ((inicio <= hora_actual < fin) or
-                (fin < inicio and (hora_actual >= inicio
-                or hora_actual < fin))):
+        if (inicio <= hora_actual < fin) or (
+            fin < inicio and (hora_actual >= inicio or hora_actual < fin)
+        ):
 
             return saludo
 
@@ -220,10 +218,11 @@ def system_status():
             dentro de los parámetros normales."
 
     mensaje = (
-                "Informe de estado"
-                f"La carga de la CPU es del {cpu} por ciento."
-                f"El uso de memoria RAM es del {ram} por ciento."
-                f"{estado_general}")
+        "Informe de estado"
+        f"La carga de la CPU es del {cpu} por ciento."
+        f"El uso de memoria RAM es del {ram} por ciento."
+        f"{estado_general}"
+    )
 
     time.sleep(5)
     talk_async(mensaje)
@@ -242,7 +241,10 @@ def sentinel_mode():
         current_time = time.time()
 
         if (cpu > 90 or ram > 90) and (current_time - last_alert > alert_countdown):
-            talk_async("Señor, el sistema se está saturando brúscamente. Se requiere revisión inmediata")
+            talk_async(
+                "Señor, el sistema se está saturando brúscamente."
+                "Se requiere revisión inmediata"
+            )
 
         time.sleep(60)
 
@@ -280,7 +282,7 @@ def run():
             "system_status": system_status,
             "guardar_resumen": guardar_resumen,
             "searchYoutube": searchYoutube,
-            "weather": weather
+            "weather": weather,
         }
 
         # Iniciador de micrófono
@@ -301,7 +303,7 @@ def run():
             elif rec:
                 command = rec.lower()
 
-                if 'adiós' in command:
+                if "adiós" in command:
                     talk_async("Ha sido un placer, señor. \
                                 Desconexión de sistemas")
                     if is_timer_active():
