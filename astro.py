@@ -20,7 +20,7 @@ from timer_tool import stop_timer_externally, is_timer_active
 from system_config import (
                             generar_resumen_documento,
                             talk_async, listen, listen_keyword,
-                            wait_for_mic_unlock
+                            wait_for_mic_unlock, init_micro
                             )
 from security import server
 from handlers import AstroBrain
@@ -282,6 +282,9 @@ def run():
             "searchYoutube": searchYoutube,
             "weather": weather
         }
+
+        # Iniciador de micrófono
+        init_micro()
 
         while True:
             # ! Esperar palabra clave

@@ -18,7 +18,6 @@ import json
 from deep_translator import GoogleTranslator
 import re
 from ddgs import DDGS
-import winsound
 from pynput import keyboard
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
@@ -48,7 +47,7 @@ MEMORY_FILE = "astro_memory.json"
 PROMT_FILE = "gemini_prompts.json"
 SCREENSHOT_NAME = "screenshot.png"
 
-# ! Cargar modelo gemini-2.5-flash para reducir tiempo de espera al analizar código
+# ! Cargar gemini-2.5-flash para reducir tiempo de espera al analizar código
 gemini = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     temperature=0.7,
@@ -125,7 +124,7 @@ def screenshot_screen(type):
         # ! Buscar VScode por el título
         windows = gw.getWindowsWithTitle('Visual Studio Code')
         if windows:
-            vscode = windows[0] # ! Elejimos la primera opción
+            vscode = windows[0]
             # ! Definir coordenadas de VScode
             x, y = vscode.left, vscode.top
             ancho, alto = vscode.width, vscode.height
@@ -145,8 +144,10 @@ def screenshot_screen(type):
             indice_monitor = None
 
             for i, monitor in enumerate(sct.monitors[1:], start=1):
-                if (monitor["left"] <= x < monitor["left"] + monitor["width"] and
-                    monitor["top"] <= y < monitor["top"] + monitor["height"]):
+                if (
+                        monitor["left"] <= x < monitor["left"] + monitor["width"]
+                        and
+                        monitor["top"] <= y < monitor["top"] + monitor["height"]):
                     monitor_encontrado = monitor
                     indice_monitor = i
                     break
@@ -240,9 +241,8 @@ def AiBrain(prompt):
         # ! Generar respuesta
         ai_answer = chat_completion.choices[0].message.content
 
-
         # TODO: Búsqueda en internet
-        # ! Buscar la etiqueta [SEARCH] en la respuesta generada 
+        # ! Buscar la etiqueta [SEARCH] en la respuesta generada
         search_web = re.search(r"\[SEARCH:(.*?)\]", ai_answer)
 
         # ? Si se encuentra la etiqueta [SEARCH]
@@ -532,14 +532,13 @@ def listen():
     rec = ""
     try:
         with sr.Microphone() as source:
-            winsound.Beep(550, 125)
-            listener.adjust_for_ambient_noise(source, duration=0.2)
-            listener.pause_threshold = 1.2
-            listener.dynamic_energy_threshold = False
+            # winsound.Beep(550, 125)
+            listener.pause_threshold = 0.5
+            listener.non_speaking_duration = 0.4
+            listener.phrase_threshold = 0.3
             listener.energy_threshold = 400
-            listener.non_speaking_duration = 0.5
             print("\n\nEscuchando...\n\n")
-            voice = listener.listen(source, timeout=10, phrase_time_limit=12)
+            voice = listener.listen(source, timeout=5, phrase_time_limit=12)
 
         rec = listener.recognize_google(voice, language='es-ES').lower()
         try:
@@ -556,6 +555,13 @@ def listen():
         print("Error al conectar con el servicio de reconocimiento de voz.")
 
     return rec
+
+
+def init_micro():
+    with sr.Microphone() as source:
+        print("[!] Calibrando ruido de fondo")
+        listener.adjust_for_ambient_noise(source, duration=1)
+        listener.dynamic_energy_threshold = True
 
 
 def listen_keyword():
@@ -628,7 +634,7 @@ def wait_for_mic_unlock():
         '<ctrl>+<shift>+M': on_activate
     }
 
-    with keyboard.GlobalHotKeys(hotkeys=hotkeys) as h:
+    with keyboard.GlobalHotKeys(hotkeys=hotkeys):
         mic_unlock_event.wait()
 
     return True

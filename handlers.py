@@ -28,6 +28,8 @@ from reload_system import (
 from dotenv import load_dotenv
 import os
 
+load_dotenv()
+
 
 class CommandHandler:
     def __init__(self, talk_async, listen):
@@ -63,7 +65,8 @@ class MusicHandler(CommandHandler):
             spotify_play(self.talk)
 
         elif ("pon" in command and "the best" in command or
-                "pon" in command and "spanish version" in command or "spanish versión" in command):
+                "pon" in command and "spanish version" in
+                command or "spanish versión" in command):
             if "the best" in command:
                 self.talk("Reproduciendo The best...")
                 spotify_my_list(self.talk, playlist=1)
@@ -95,11 +98,13 @@ class MusicHandler(CommandHandler):
             if "máximo" in command:
                 spotify_set_volume(100, self.talk)
             elif "%" in command or " al " in command:
-                volumen = int((command
-                            .replace("sube el volumen", "")
-                            .replace("%", "")
-                            .replace(" al ", "")
-                            .strip()))
+                volumen = int((
+                    command
+                    .replace("sube el volumen", "")
+                    .replace("%", "")
+                    .replace(" al ", "")
+                    .strip()
+                ))
                 spotify_set_volume(volumen, self.talk)
             else:
                 original = spotify_get_volume(self.talk)
@@ -109,12 +114,14 @@ class MusicHandler(CommandHandler):
             if "mínimo" in command:
                 spotify_set_volume(0, self.talk)
             elif "%" in command or " al " in command:
-                volumen = int((command
-                            .replace("baja el volumen", "")
-                            .replace("baja la voz", "")
-                            .replace("%", "")
-                            .replace(" al ", "")
-                            .strip()))
+                volumen = int((
+                    command
+                    .replace("baja el volumen", "")
+                    .replace("baja la voz", "")
+                    .replace("%", "")
+                    .replace(" al ", "")
+                    .strip()
+                ))
                 spotify_set_volume(volumen, self.talk)
             else:
                 original = spotify_get_volume(self.talk)
@@ -124,7 +131,11 @@ class MusicHandler(CommandHandler):
             actual_device_name = spoti_info(self.talk, "device_name")
 
             if actual_device_name:
-                if "exterior" in command and actual_device_name['device_name'].lower() != echo_name.lower():
+                if (
+                        "exterior" in command and
+                        actual_device_name['device_name'].lower()
+                        != echo_name.lower()
+                        ):
                     transfer_music(self.talk, echo_name)
                 else:
                     transfer_music(self.talk, pc_name)
@@ -362,10 +373,14 @@ class UpdateHandler(CommandHandler):
         else:
             self.talk("Recargando los módulos...")
             if reload_modules():
-                from handlers import AstroBrain
-                self.talk("Actualización completada, señor. Listo para continuar")
+                self.talk(
+                    "Actualización completada, señor."
+                    "Listo para continuar"
+                )
             else:
-                self.talk("Ha habido un problema en la actualización, señor.")
+                self.talk(
+                    "Ha habido un problema en la actualización, señor."
+                )
 
 
 class MemoryHandler(CommandHandler):
@@ -442,7 +457,8 @@ class CodeAssintantHandler(CommandHandler):
             "Responde ÚNICAMENTE con este formato: "
             "EXPLICACION: (breve frase)\n "
             "CODIGO:\n"
-            "(aquí escribes el código real, con saltos de línea, sangrías y sin símbolos extraños)"
+            "(aquí escribes el código real,"
+            "con saltos de línea, sangrías y sin símbolos extraños)"
         )
 
         ai_answer = AiBrain(prompt_especifico)
@@ -503,19 +519,54 @@ class AIBrainHandler(CommandHandler):
 
 class AstroBrain:
     def __init__(self, talk_async, listen):
+        self.music = MusicHandler(talk_async, listen)
+        self.system = SystemHandler(talk_async, listen)
+        self.search = SearchHandler(talk_async, listen)
+        self.time = TimerHandler(talk_async, listen)
+        self.memory = MemoryHandler(talk_async, listen)
+        self.code_assist = CodeAssintantHandler(talk_async, listen)
+        self.update = UpdateHandler(talk_async, listen)
+        self.others = OtherQuestionsHandler(talk_async, listen)
+        self.ai_brain = AIBrainHandler(talk_async, listen)
+
         self.handlers = [
-            MusicHandler(talk_async, listen),
-            SystemHandler(talk_async, listen),
-            SearchHandler(talk_async, listen),
-            TimerHandler(talk_async, listen),
-            MemoryHandler(talk_async, listen),
-            CodeAssintantHandler(talk_async, listen),
-            UpdateHandler(talk_async, listen),
-            OtherQuestionsHandler(talk_async, listen),
-            AIBrainHandler(talk_async, listen)
+            self.music,
+            self.system,
+            self.search,
+            self.time,
+            self.memory,
+            self.code_assist,
+            self.update,
+            self.others,
+            self.ai_brain
         ]
 
+        self.fast_move = {
+            "pon": self.music,
+            "spotify": self.music,
+            "volumen": self.music,
+            "abre": self.system,
+            "inicia": self.system,
+            "kali": self.system,
+            "busca": self.search
+        }
+
     def process_command(self, command, **kwargs):
+        # Búsqueda por 1ª palabra
+        first_word = ""
+        if command:
+            first_word = command.split()[0]
+
+        if first_word in self.fast_move:
+            handler = self.fast_move[first_word]
+            if handler.can_handle(command):
+                try:
+                    handler.execute(command, **kwargs)
+                    return
+                except Exception as e:
+                    print(f"Error en módulo {type(handler).__name__}: {e}")
+
+        # Búsqueda por handlers
         for handler in self.handlers:
             if handler.can_handle(command):
                 try:
