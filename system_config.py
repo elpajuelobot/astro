@@ -27,6 +27,8 @@ import pygetwindow as gw
 from PIL import Image
 from pynput import mouse
 from pathlib import Path
+import pystray
+from PIL import Image
 
 # ! Semaforo para controlar el audio
 audio_lock = threading.Lock()
@@ -646,3 +648,19 @@ def wait_for_mic_unlock():
         mic_unlock_event.wait()
 
     return True
+
+
+def setup_stray():
+    image = Image.open("astro_icon.png")
+
+    def on_quit(icon, item):
+        icon.stop()
+        os._exit(0)
+
+    menu = pystray.Menu(
+        pystray.MenuItem("Estado: Operativo", lambda: None, enabled=False),
+        pystray.MenuItem("Cerrar Astro", on_quit)
+    )
+
+    icon = pystray.Icon("Astro", image, "Astro AI", menu)
+    icon.run()

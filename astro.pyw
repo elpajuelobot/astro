@@ -24,6 +24,7 @@ from system_config import (
     listen_keyword,
     wait_for_mic_unlock,
     init_micro,
+    setup_stray
 )
 from security import server
 from handlers import AstroBrain
@@ -37,6 +38,9 @@ W_URL = os.getenv("WEATHER_URL")
 
 # Variables de configuración
 stop = False
+
+# Añadir Icono de astro a barra de tareas
+threading.Thread(target=setup_stray, daemon=True).start()
 
 
 # Tiempo atmosférico
